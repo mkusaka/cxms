@@ -1,4 +1,3 @@
-pub mod convert;
 pub mod interactive_ratatui;
 pub mod profiling;
 #[cfg(feature = "profiling")]
