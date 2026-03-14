@@ -583,7 +583,7 @@ mod tests {
             "type": "user",
             "message": {
                 "role": "user",
-                "content": "Hello, Claude!"
+                "content": "Hello, Codex!"
             },
             "uuid": "test-uuid",
             "timestamp": "2024-01-01T00:00:00Z",
@@ -598,7 +598,7 @@ mod tests {
         let msg: SessionMessage = serde_json::from_str(json).unwrap();
 
         assert_eq!(msg.get_type(), "user");
-        assert_eq!(msg.get_content_text(), "Hello, Claude!");
+        assert_eq!(msg.get_content_text(), "Hello, Codex!");
         assert_eq!(msg.get_uuid(), Some("test-uuid"));
         assert_eq!(msg.get_timestamp(), Some("2024-01-01T00:00:00Z"));
         assert_eq!(msg.get_session_id(), Some("test-session"));
@@ -612,7 +612,7 @@ mod tests {
                 "id": "msg_01",
                 "type": "message",
                 "role": "assistant",
-                "model": "claude-3-5-sonnet",
+                "model": "codex-mini",
                 "content": [
                     {"type": "text", "text": "I'll help you with that."},
                     {
@@ -658,7 +658,7 @@ mod tests {
                 "id": "msg_02",
                 "type": "message",
                 "role": "assistant",
-                "model": "claude-3-5-sonnet",
+                "model": "codex-mini",
                 "content": [
                     {
                         "type": "thinking",
@@ -813,7 +813,7 @@ mod tests {
                 "id": "msg_03",
                 "type": "message",
                 "role": "assistant",
-                "model": "claude-3-5-sonnet",
+                "model": "codex-mini",
                 "content": [
                     {"type": "text", "text": "Starting analysis..."},
                     {

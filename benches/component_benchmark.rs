@@ -57,7 +57,7 @@ fn benchmark_json_parsing(c: &mut Criterion) {
 
     let simple_json = r#"{"type":"user","message":{"role":"user","content":"Test message"},"uuid":"123","timestamp":"2024-01-01T00:00:00Z","sessionId":"s1","parentUuid":null,"isSidechain":false,"userType":"external","cwd":"/test","version":"1.0"}"#;
 
-    let complex_json = r#"{"type":"assistant","message":{"id":"msg1","type":"message","role":"assistant","model":"claude-3","content":[{"type":"text","text":"Hello world"},{"type":"tool_use","id":"tool1","name":"Bash","input":{"command":"ls -la"}}],"stop_reason":"tool_use","stop_sequence":null,"usage":{"input_tokens":100,"cache_creation_input_tokens":0,"cache_read_input_tokens":0,"output_tokens":50}},"uuid":"456","timestamp":"2024-01-01T00:00:01Z","sessionId":"s1","parentUuid":"123","isSidechain":false,"userType":"external","cwd":"/test","version":"1.0","requestId":"req1"}"#;
+    let complex_json = r#"{"type":"assistant","message":{"id":"msg1","type":"message","role":"assistant","model":"codex","content":[{"type":"text","text":"Hello world"},{"type":"tool_use","id":"tool1","name":"Bash","input":{"command":"ls -la"}}],"stop_reason":"tool_use","stop_sequence":null,"usage":{"input_tokens":100,"cache_creation_input_tokens":0,"cache_read_input_tokens":0,"output_tokens":50}},"uuid":"456","timestamp":"2024-01-01T00:00:01Z","sessionId":"s1","parentUuid":"123","isSidechain":false,"userType":"external","cwd":"/test","version":"1.0","requestId":"req1"}"#;
 
     group.bench_function("sonic_rs_simple", |b| {
         b.iter(|| {
@@ -127,7 +127,7 @@ fn benchmark_content_extraction(c: &mut Criterion) {
     ).unwrap();
 
     let complex_msg: SessionMessage = serde_json::from_str(
-        r#"{"type":"assistant","message":{"id":"msg1","type":"message","role":"assistant","model":"claude-3","content":[{"type":"text","text":"Hello world"},{"type":"tool_use","id":"tool1","name":"Bash","input":{"command":"ls -la"}},{"type":"tool_result","tool_use_id":"tool1","content":"file1\nfile2\nfile3"}],"stop_reason":"tool_use","stop_sequence":null,"usage":{"input_tokens":100,"cache_creation_input_tokens":0,"cache_read_input_tokens":0,"output_tokens":50}},"uuid":"456","timestamp":"2024-01-01T00:00:01Z","sessionId":"s1","parentUuid":"123","isSidechain":false,"userType":"external","cwd":"/test","version":"1.0","requestId":"req1"}"#
+        r#"{"type":"assistant","message":{"id":"msg1","type":"message","role":"assistant","model":"codex","content":[{"type":"text","text":"Hello world"},{"type":"tool_use","id":"tool1","name":"Bash","input":{"command":"ls -la"}},{"type":"tool_result","tool_use_id":"tool1","content":"file1\nfile2\nfile3"}],"stop_reason":"tool_use","stop_sequence":null,"usage":{"input_tokens":100,"cache_creation_input_tokens":0,"cache_read_input_tokens":0,"output_tokens":50}},"uuid":"456","timestamp":"2024-01-01T00:00:01Z","sessionId":"s1","parentUuid":"123","isSidechain":false,"userType":"external","cwd":"/test","version":"1.0","requestId":"req1"}"#
     ).unwrap();
 
     group.bench_function("extract_simple", |b| {

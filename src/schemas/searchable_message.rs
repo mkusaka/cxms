@@ -1,4 +1,4 @@
-use crate::schemas::session_message::SessionMessage as ClaudeSessionMessage;
+use crate::schemas::session_message::SessionMessage as LegacySessionMessage;
 use serde::Deserialize;
 
 const USER_MESSAGE_BEGIN: &str = "## My request for Codex:";
@@ -29,7 +29,7 @@ pub struct SearchableMessage {
 }
 
 impl SearchableMessage {
-    fn from_claude(message: ClaudeSessionMessage) -> Self {
+    fn from_legacy_message(message: LegacySessionMessage) -> Self {
         Self {
             role: message.get_type().to_string(),
             text: message.get_content_text(),
@@ -168,8 +168,8 @@ pub fn parse_searchable_message(
     line: &[u8],
     context: &mut SessionContext,
 ) -> Option<SearchableMessage> {
-    if let Ok(message) = sonic_rs::from_slice::<ClaudeSessionMessage>(line) {
-        return Some(SearchableMessage::from_claude(message));
+    if let Ok(message) = sonic_rs::from_slice::<LegacySessionMessage>(line) {
+        return Some(SearchableMessage::from_legacy_message(message));
     }
 
     let rollout_line = sonic_rs::from_slice::<CodexRolloutLine>(line).ok()?;
@@ -251,17 +251,17 @@ mod tests {
     use super::*;
 
     #[test]
-    fn parses_claude_message() {
+    fn parses_legacy_session_message() {
         let mut context = SessionContext::default();
         let json = br#"{
             "type": "user",
             "message": {
                 "role": "user",
-                "content": "Hello from Claude"
+                "content": "Hello from Codex"
             },
-            "uuid": "claude-uuid",
+            "uuid": "legacy-uuid",
             "timestamp": "2024-01-01T00:00:00Z",
-            "sessionId": "claude-session",
+            "sessionId": "legacy-session",
             "parentUuid": null,
             "isSidechain": false,
             "userType": "external",
@@ -272,9 +272,9 @@ mod tests {
         let message = parse_searchable_message(json, &mut context).unwrap();
 
         assert_eq!(message.get_type(), "user");
-        assert_eq!(message.get_content_text(), "Hello from Claude");
-        assert_eq!(message.get_uuid(), Some("claude-uuid"));
-        assert_eq!(message.get_session_id(), Some("claude-session"));
+        assert_eq!(message.get_content_text(), "Hello from Codex");
+        assert_eq!(message.get_uuid(), Some("legacy-uuid"));
+        assert_eq!(message.get_session_id(), Some("legacy-session"));
         assert_eq!(message.get_cwd(), Some("/repo"));
     }
 

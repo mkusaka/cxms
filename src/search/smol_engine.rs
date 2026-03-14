@@ -514,7 +514,7 @@ mod tests {
         )?;
         writeln!(
             file,
-            r#"{{"type":"assistant","message":{{"id":"msg1","type":"message","role":"assistant","model":"claude","content":[{{"type":"text","text":"Hi there!"}}],"stop_reason":"end_turn","stop_sequence":null,"usage":{{"input_tokens":10,"cache_creation_input_tokens":0,"cache_read_input_tokens":0,"output_tokens":5}}}},"uuid":"124","timestamp":"2024-01-01T00:00:01Z","sessionId":"session1","parentUuid":"123","isSidechain":false,"userType":"external","cwd":"/test","version":"1.0"}}"#
+            r#"{{"type":"assistant","message":{{"id":"msg1","type":"message","role":"assistant","model":"codex","content":[{{"type":"text","text":"Hi there!"}}],"stop_reason":"end_turn","stop_sequence":null,"usage":{{"input_tokens":10,"cache_creation_input_tokens":0,"cache_read_input_tokens":0,"output_tokens":5}}}},"uuid":"124","timestamp":"2024-01-01T00:00:01Z","sessionId":"session1","parentUuid":"123","isSidechain":false,"userType":"external","cwd":"/test","version":"1.0"}}"#
         )?;
 
         // Search for "Hello"
@@ -804,12 +804,12 @@ mod tests {
     #[test]
     fn test_cwd_filter() -> Result<()> {
         let temp_dir = tempdir()?;
-        let projects_dir = temp_dir.path().join(".claude").join("projects");
-        std::fs::create_dir_all(&projects_dir)?;
+        let sessions_dir = temp_dir.path().join(".codex").join("sessions");
+        std::fs::create_dir_all(&sessions_dir)?;
 
         // Create project directories
-        let project1_dir = projects_dir.join("-Users-project1");
-        let project2_dir = projects_dir.join("-Users-project2");
+        let project1_dir = sessions_dir.join("project1");
+        let project2_dir = sessions_dir.join("project2");
         std::fs::create_dir_all(&project1_dir)?;
         std::fs::create_dir_all(&project2_dir)?;
 
@@ -839,7 +839,7 @@ mod tests {
         let query = parse_query("message")?;
 
         // Search in both files pattern
-        let pattern = projects_dir.join("*/*.jsonl");
+        let pattern = sessions_dir.join("*/*.jsonl");
         let (results, _, _) = engine.search(pattern.to_str().unwrap(), query)?;
 
         // Should only find results from project1
@@ -942,7 +942,7 @@ mod tests {
         )?;
         writeln!(
             file,
-            r#"{{"type":"assistant","message":{{"id":"msg1","type":"message","role":"assistant","model":"claude","content":[],"stop_reason":"end_turn","stop_sequence":null,"usage":{{"input_tokens":10,"cache_creation_input_tokens":0,"cache_read_input_tokens":0,"output_tokens":5}}}},"uuid":"2","timestamp":"2024-01-01T00:00:01Z","sessionId":"s1","parentUuid":"1","isSidechain":false,"userType":"external","cwd":"/","version":"1"}}"#
+            r#"{{"type":"assistant","message":{{"id":"msg1","type":"message","role":"assistant","model":"codex","content":[],"stop_reason":"end_turn","stop_sequence":null,"usage":{{"input_tokens":10,"cache_creation_input_tokens":0,"cache_read_input_tokens":0,"output_tokens":5}}}},"uuid":"2","timestamp":"2024-01-01T00:00:01Z","sessionId":"s1","parentUuid":"1","isSidechain":false,"userType":"external","cwd":"/","version":"1"}}"#
         )?;
 
         // Search should handle empty content
@@ -1150,11 +1150,11 @@ mod tests {
         let mut file = File::create(&test_file)?;
         writeln!(
             file,
-            r#"{{"type":"assistant","message":{{"id":"msg1","type":"message","role":"assistant","model":"claude","content":[{{"type":"thinking","thinking":"Let me analyze this..."}},{{"type":"text","text":"Here's my response"}}],"stop_reason":"end_turn","stop_sequence":null,"usage":{{"input_tokens":10,"cache_creation_input_tokens":0,"cache_read_input_tokens":0,"output_tokens":5}}}},"uuid":"1","timestamp":"2024-01-01T00:00:00Z","sessionId":"s1","parentUuid":null,"isSidechain":false,"userType":"external","cwd":"/","version":"1"}}"#
+            r#"{{"type":"assistant","message":{{"id":"msg1","type":"message","role":"assistant","model":"codex","content":[{{"type":"thinking","thinking":"Let me analyze this..."}},{{"type":"text","text":"Here's my response"}}],"stop_reason":"end_turn","stop_sequence":null,"usage":{{"input_tokens":10,"cache_creation_input_tokens":0,"cache_read_input_tokens":0,"output_tokens":5}}}},"uuid":"1","timestamp":"2024-01-01T00:00:00Z","sessionId":"s1","parentUuid":null,"isSidechain":false,"userType":"external","cwd":"/","version":"1"}}"#
         )?;
         writeln!(
             file,
-            r#"{{"type":"assistant","message":{{"id":"msg2","type":"message","role":"assistant","model":"claude","content":[{{"type":"tool_use","id":"tool1","name":"calculator","input":{{"a":1,"b":2}}}},{{"type":"text","text":"The result is 3"}}],"stop_reason":"end_turn","stop_sequence":null,"usage":{{"input_tokens":10,"cache_creation_input_tokens":0,"cache_read_input_tokens":0,"output_tokens":5}}}},"uuid":"2","timestamp":"2024-01-01T00:00:01Z","sessionId":"s1","parentUuid":null,"isSidechain":false,"userType":"external","cwd":"/","version":"1"}}"#
+            r#"{{"type":"assistant","message":{{"id":"msg2","type":"message","role":"assistant","model":"codex","content":[{{"type":"tool_use","id":"tool1","name":"calculator","input":{{"a":1,"b":2}}}},{{"type":"text","text":"The result is 3"}}],"stop_reason":"end_turn","stop_sequence":null,"usage":{{"input_tokens":10,"cache_creation_input_tokens":0,"cache_read_input_tokens":0,"output_tokens":5}}}},"uuid":"2","timestamp":"2024-01-01T00:00:01Z","sessionId":"s1","parentUuid":null,"isSidechain":false,"userType":"external","cwd":"/","version":"1"}}"#
         )?;
 
         let options = SearchOptions::default();

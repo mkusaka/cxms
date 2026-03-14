@@ -58,7 +58,7 @@ mod tests {
         let mut terminal = Terminal::new(backend).unwrap();
 
         // Create a very long file path
-        let long_path = "/Users/masatomokusaka/.claude/projects/very-long-project-name/session-files/0ff88f7e-99a2-4c72-b7c1-fb95713d1832.jsonl";
+        let long_path = "/Users/masatomokusaka/.codex/sessions/2026/03/15/rollout-2026-03-15T00-00-00-0ff88f7e-99a2-4c72-b7c1-fb95713d1832.jsonl";
         let subtitle = format!("Session: test-session\nFile: {long_path}");
 
         terminal

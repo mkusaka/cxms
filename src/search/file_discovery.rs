@@ -59,17 +59,8 @@ pub fn expand_tilde(path: &str) -> PathBuf {
     PathBuf::from(path)
 }
 
-pub fn default_claude_pattern() -> String {
-    "~/.claude/projects/**/*.jsonl".to_string()
-}
-
 pub fn default_codex_pattern() -> String {
     "~/.codex/sessions/**/*.jsonl".to_string()
-}
-
-pub fn discover_claude_files(pattern: Option<&str>) -> Result<Vec<PathBuf>> {
-    let default_pattern = default_claude_pattern();
-    discover_files_with_default(pattern, &default_pattern)
 }
 
 pub fn discover_codex_files(pattern: Option<&str>) -> Result<Vec<PathBuf>> {

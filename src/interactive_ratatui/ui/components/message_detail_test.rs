@@ -35,7 +35,7 @@ mod tests {
 
     fn create_test_result_with_long_file_path() -> SearchResult {
         let mut result = create_test_result();
-        result.file = "/Users/masatomokusaka/.claude/projects/very-long-project-name/session-files/0ff88f7e-99a2-4c72-b7c1-fb95713d1832.jsonl".to_string();
+        result.file = "/Users/masatomokusaka/.codex/sessions/2026/03/15/rollout-2026-03-15T00-00-00-0ff88f7e-99a2-4c72-b7c1-fb95713d1832.jsonl".to_string();
         result
     }
 
@@ -47,7 +47,7 @@ mod tests {
 
     fn create_test_result_with_all_long_fields() -> SearchResult {
         let mut result = create_test_result();
-        result.file = "/Users/masatomokusaka/.claude/projects/very-long-project-name/session-files/0ff88f7e-99a2-4c72-b7c1-fb95713d1832.jsonl".to_string();
+        result.file = "/Users/masatomokusaka/.codex/sessions/2026/03/15/rollout-2026-03-15T00-00-00-0ff88f7e-99a2-4c72-b7c1-fb95713d1832.jsonl".to_string();
         result.cwd = "/Users/masatomokusaka/src/github/com/organization/very-long-project-name-with-multiple-segments/sub-project/workspace".to_string();
         result.session_id = "extremely-long-session-id-0ff88f7e-99a2-4c72-b7c1-fb95713d1832-with-additional-segments".to_string();
         result.uuid =

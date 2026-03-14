@@ -475,7 +475,7 @@ cxms/
 │   ├── query/                     # Query parsing and evaluation
 │   │   ├── parser.rs              # Nom-based query parser
 │   │   └── condition.rs           # Query condition types
-│   ├── schemas/                   # Claude message schemas
+│   ├── schemas/                   # Codex and legacy session schemas
 │   │   ├── session_message.rs
 │   │   └── tool_result.rs
 │   ├── search/                    # Search engine implementation
@@ -486,7 +486,7 @@ cxms/
 │   └── profiling.rs               # Performance profiling
 ├── benches/                       # Benchmarks
 ├── tests/                         # Integration tests
-├── CLAUDE.md                      # Guidance for Claude Code
+├── AGENTS.md                      # Guidance for Codex agents
 ├── spec.md                        # Detailed interactive mode specification
 └── PERFORMANCE.md                 # Performance characteristics and benchmarks
 ```
@@ -541,7 +541,7 @@ cxms -p "/path/to/specific/session.jsonl" "query"
 ## Troubleshooting
 
 ### No results found
-- Check file permissions on Claude session files
+- Check file permissions on Codex session files
 - Verify the search pattern matches existing files
 - Use `-v` flag for verbose output to debug file discovery
 
