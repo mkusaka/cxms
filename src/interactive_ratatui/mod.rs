@@ -33,7 +33,7 @@ mod session_view_integration_test;
 #[cfg(test)]
 mod tests;
 
-use self::application::search_service::SearchService;
+pub use self::application::search_service::SearchService;
 use self::constants::*;
 use self::domain::models::{Mode, SearchOrder, SearchRequest, SearchResponse, SessionOrder};
 use self::ui::{

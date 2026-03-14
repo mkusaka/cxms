@@ -1,5 +1,5 @@
-use crate::SessionMessage;
 use crate::query::condition::SearchResult;
+use crate::schemas::SearchableMessage;
 use std::time::SystemTime;
 
 #[derive(Clone, Copy, PartialEq, Debug)]
@@ -29,7 +29,7 @@ pub enum SearchOrder {
 }
 
 pub struct CachedFile {
-    pub messages: Vec<SessionMessage>,
+    pub messages: Vec<SearchableMessage>,
     pub raw_lines: Vec<String>,
     pub last_modified: SystemTime,
 }

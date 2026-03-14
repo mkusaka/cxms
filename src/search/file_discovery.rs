@@ -63,9 +63,25 @@ pub fn default_claude_pattern() -> String {
     "~/.claude/projects/**/*.jsonl".to_string()
 }
 
+pub fn default_codex_pattern() -> String {
+    "~/.codex/sessions/**/*.jsonl".to_string()
+}
+
 pub fn discover_claude_files(pattern: Option<&str>) -> Result<Vec<PathBuf>> {
     let default_pattern = default_claude_pattern();
-    let pattern = pattern.unwrap_or(&default_pattern);
+    discover_files_with_default(pattern, &default_pattern)
+}
+
+pub fn discover_codex_files(pattern: Option<&str>) -> Result<Vec<PathBuf>> {
+    let default_pattern = default_codex_pattern();
+    discover_files_with_default(pattern, &default_pattern)
+}
+
+fn discover_files_with_default(
+    pattern: Option<&str>,
+    default_pattern: &str,
+) -> Result<Vec<PathBuf>> {
+    let pattern = pattern.unwrap_or(default_pattern);
     let expanded_path = expand_tilde(pattern);
 
     // Extract base path and glob pattern
@@ -160,5 +176,10 @@ mod tests {
         assert_eq!(files.len(), 2);
 
         Ok(())
+    }
+
+    #[test]
+    fn test_default_codex_pattern() {
+        assert_eq!(default_codex_pattern(), "~/.codex/sessions/**/*.jsonl");
     }
 }

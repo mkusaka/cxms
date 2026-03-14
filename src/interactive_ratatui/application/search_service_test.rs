@@ -3,6 +3,80 @@ mod tests {
     use super::super::search_service::*;
     use crate::SearchOptions;
     use crate::interactive_ratatui::domain::models::{SearchOrder, SearchRequest};
+    use serde_json::json;
+    use std::fs::File;
+    use std::io::Write;
+    use tempfile::tempdir;
+
+    fn write_codex_rollout(
+        dir: &std::path::Path,
+        file_name: &str,
+        session_id: &str,
+        cwd: &str,
+        user_message: &str,
+        assistant_message: &str,
+    ) -> std::path::PathBuf {
+        let path = dir.join(file_name);
+        let mut file = File::create(&path).unwrap();
+
+        writeln!(
+            file,
+            "{}",
+            json!({
+                "timestamp": "2026-03-15T00:00:00Z",
+                "type": "session_meta",
+                "payload": {
+                    "id": session_id,
+                    "cwd": cwd,
+                }
+            })
+        )
+        .unwrap();
+        writeln!(
+            file,
+            "{}",
+            json!({
+                "timestamp": "2026-03-15T00:00:01Z",
+                "type": "response_item",
+                "payload": {
+                    "type": "message",
+                    "role": "user",
+                    "content": [
+                        {
+                            "type": "input_text",
+                            "text": "<user_instructions>\nignored\n</user_instructions>"
+                        },
+                        {
+                            "type": "input_text",
+                            "text": user_message
+                        }
+                    ]
+                }
+            })
+        )
+        .unwrap();
+        writeln!(
+            file,
+            "{}",
+            json!({
+                "timestamp": "2026-03-15T00:00:02Z",
+                "type": "response_item",
+                "payload": {
+                    "type": "message",
+                    "role": "assistant",
+                    "content": [
+                        {
+                            "type": "output_text",
+                            "text": assistant_message
+                        }
+                    ]
+                }
+            })
+        )
+        .unwrap();
+
+        path
+    }
 
     #[test]
     fn test_search_service_creation() {
@@ -165,93 +239,78 @@ mod tests {
     // Tests for get_all_sessions
 
     #[test]
-    fn test_get_all_sessions_empty_directory() {
-        // For testing, we'll use a fake project path that won't exist in Claude's directory
-        let options = SearchOptions {
-            project_path: Some("/fake/test/project".to_string()),
-            ..Default::default()
-        };
-
-        let service = SearchService::new(options);
-        let result = service.get_all_sessions();
-
-        assert!(result.is_ok());
-        let sessions = result.unwrap();
-        assert_eq!(sessions.len(), 0);
+    fn test_collect_sessions_empty_directory() {
+        let sessions = collect_sessions_from_files(Vec::new(), None).unwrap();
+        assert!(sessions.is_empty());
     }
 
     #[test]
-    fn test_get_all_sessions_with_sessions() {
-        // Since get_all_sessions looks for files in Claude's directory structure,
-        // we can't test with actual files. Instead, we'll test the path normalization
-        // and ensure it doesn't crash on non-existent paths.
-        let options = SearchOptions {
-            project_path: Some("/test/project/path".to_string()),
-            ..Default::default()
-        };
+    fn test_collect_sessions_from_codex_rollout() {
+        let temp_dir = tempdir().unwrap();
+        let rollout = write_codex_rollout(
+            temp_dir.path(),
+            "session.jsonl",
+            "session-1",
+            "/repo/project",
+            "## My request for Codex:\nFind the bug",
+            "I found the bug",
+        );
 
-        let service = SearchService::new(options);
-        let result = service.get_all_sessions();
+        let sessions = collect_sessions_from_files(vec![rollout], None).unwrap();
 
-        // Should succeed even if no files are found
-        assert!(result.is_ok());
-        let sessions = result.unwrap();
-        // Will be empty since the Claude directory doesn't exist in test environment
-        assert_eq!(sessions.len(), 0);
+        assert_eq!(sessions.len(), 1);
+        assert_eq!(sessions[0].1, "session-1");
+        assert_eq!(sessions[0].3, 2);
+        assert_eq!(sessions[0].4, "Find the bug");
+        assert_eq!(sessions[0].5.len(), 2);
+        assert_eq!(sessions[0].5[0].0, "user");
+        assert_eq!(sessions[0].5[0].1, "Find the bug");
+        assert_eq!(sessions[0].5[1].0, "assistant");
     }
 
     #[test]
-    fn test_get_all_sessions_preview_messages() {
-        // Test with a specific project path to ensure path normalization works
-        let options = SearchOptions {
-            project_path: Some("/Users/test_user/my_project".to_string()),
-            ..Default::default()
-        };
+    fn test_collect_sessions_respects_project_path() {
+        let temp_dir = tempdir().unwrap();
+        let rollout_a = write_codex_rollout(
+            temp_dir.path(),
+            "project-a.jsonl",
+            "session-a",
+            "/repo/project-a",
+            "Search project A",
+            "Done",
+        );
+        let rollout_b = write_codex_rollout(
+            temp_dir.path(),
+            "project-b.jsonl",
+            "session-b",
+            "/repo/project-b",
+            "Search project B",
+            "Done",
+        );
 
-        let service = SearchService::new(options);
-        let result = service.get_all_sessions();
+        let sessions =
+            collect_sessions_from_files(vec![rollout_a, rollout_b], Some("/repo/project-a"))
+                .unwrap();
 
-        assert!(result.is_ok());
-        // Will be empty in test environment but proves the function doesn't crash
-        let sessions = result.unwrap();
-        assert_eq!(sessions.len(), 0);
+        assert_eq!(sessions.len(), 1);
+        assert_eq!(sessions[0].1, "session-a");
     }
 
     #[test]
-    fn test_get_all_sessions_with_content_array() {
-        // Test with path containing underscores to verify normalization
-        let options = SearchOptions {
-            project_path: Some("/home/user/my_test_project".to_string()),
-            ..Default::default()
-        };
+    fn test_get_all_sessions_with_nonexistent_project_filter_returns_empty() {
+        let temp_dir = tempdir().unwrap();
+        let rollout = write_codex_rollout(
+            temp_dir.path(),
+            "session.jsonl",
+            "session-1",
+            "/repo/project",
+            "Search project",
+            "Done",
+        );
 
-        let service = SearchService::new(options);
-        let result = service.get_all_sessions();
+        let sessions =
+            collect_sessions_from_files(vec![rollout], Some("/repo/does-not-match")).unwrap();
 
-        assert!(result.is_ok());
-        let sessions = result.unwrap();
-        assert_eq!(sessions.len(), 0);
-    }
-
-    #[test]
-    fn test_get_all_sessions_project_path_normalization() {
-        // Test project path normalization
-        let test_paths = vec![
-            "/Users/test/project_name",
-            "/home/user/my-project",
-            "/opt/apps/test_app",
-        ];
-
-        for test_path in test_paths {
-            let options = SearchOptions {
-                project_path: Some(test_path.to_string()),
-                ..Default::default()
-            };
-
-            let service = SearchService::new(options);
-            // This should not panic and handle the path normalization correctly
-            let result = service.get_all_sessions();
-            assert!(result.is_ok());
-        }
+        assert!(sessions.is_empty());
     }
 }

@@ -1,7 +1,9 @@
+pub mod searchable_message;
 pub mod session_message;
 pub mod tool_result;
 
 // Re-export specific types to avoid conflicts
+pub use searchable_message::{SearchableMessage, SessionContext, parse_searchable_message};
 pub use session_message::{
     AssistantMessageContent,
     BaseMessage,

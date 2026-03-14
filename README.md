@@ -1,9 +1,9 @@
-# CXMS (Claude Code Message Searcher)
+# CXMS (Codex Message Searcher)
 
 [![CI](https://github.com/mkusaka/cxms/actions/workflows/ci.yml/badge.svg)](https://github.com/mkusaka/cxms/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-High-performance CLI for searching Claude session JSONL files with an interactive TUI mode.
+High-performance CLI for searching Codex session rollout JSONL files with an interactive TUI mode.
 
 ## Features
 
@@ -100,11 +100,11 @@ After installation, restart your shell or source your configuration file to enab
 # Launch interactive mode (no arguments needed)
 cxms
 
-# Search for "error" in all Claude sessions
+# Search for "error" in all Codex sessions
 cxms "error"
 
 # Search in specific files
-cxms -p "~/.claude/projects/myproject/*.jsonl" "bug"
+cxms -p "~/.codex/sessions/**/*.jsonl" "bug"
 
 # Filter by role
 cxms -r user "how to"
@@ -304,7 +304,7 @@ JSON output structure includes:
 ## CLI Options
 
 ### General Options
-- `-p, --pattern <PATTERN>` - File pattern to search (default: `~/.claude/projects/**/*.jsonl`)
+- `-p, --pattern <PATTERN>` - File pattern to search (default: `~/.codex/sessions/**/*.jsonl`)
 - `-n, --max-results <N>` - Maximum number of results to return (default: 200)
 - `-f, --format <FORMAT>` - Output format: `text`, `json`, or `jsonl` (default: text)
 - `-v, --verbose` - Enable verbose output
@@ -505,13 +505,13 @@ This tool is optimized for maximum performance:
 
 ### Default Search Location
 
-By default, searches in `~/.claude/projects/**/*.jsonl`
+By default, searches in `~/.codex/sessions/**/*.jsonl`
 
 ### Custom Patterns
 
 ```bash
 # Search in specific project
-cxms -p "~/.claude/projects/myproject/*.jsonl" "query"
+cxms -p "~/.codex/sessions/**/*.jsonl" "query"
 
 # Search in current directory
 cxms -p "$(pwd)/**/*.jsonl" "query"

@@ -3,16 +3,16 @@
 static GLOBAL: mimalloc::MiMalloc = mimalloc::MiMalloc;
 
 use anyhow::Result;
-use chrono::{DateTime, Local, Utc};
-use clap::{Command, CommandFactory, Parser, ValueEnum};
-use clap_complete::{Generator, Shell, generate};
 #[cfg(feature = "profiling")]
 use cxms::profiling_enhanced;
 use cxms::{
     QueryCondition, RayonEngine, SearchEngineTrait, SearchOptions, SearchResult, SmolEngine,
-    Statistics, default_claude_pattern, format_search_result,
+    Statistics, default_codex_pattern, format_search_result,
     interactive_ratatui::InteractiveSearch, parse_query, profiling,
 };
+use chrono::{DateTime, Local, Utc};
+use clap::{Command, CommandFactory, Parser, ValueEnum};
+use clap_complete::{Generator, Shell, generate};
 use parse_datetime::parse_datetime_at_date;
 use std::collections::HashMap;
 use std::io::{self, Write};
@@ -21,14 +21,14 @@ use std::io::{self, Write};
 #[command(
     name = "cxms",
     version,
-    about = "High-performance CLI for searching Claude session JSONL files",
+    about = "High-performance CLI for searching Codex session rollout JSONL files",
     long_about = None
 )]
 struct Cli {
     /// Search query (supports literal, regex, AND/OR/NOT operators). If not provided, enters interactive mode.
     query: Option<String>,
 
-    /// File pattern to search (default: ~/.claude/projects/**/*.jsonl)
+    /// File pattern to search (default: ~/.codex/sessions/**/*.jsonl)
     #[arg(short, long)]
     pattern: Option<String>,
 
@@ -195,7 +195,7 @@ fn main() -> Result<()> {
     });
 
     // Get pattern
-    let default_pattern = default_claude_pattern();
+    let default_pattern = default_codex_pattern();
     let pattern = cli.pattern.as_deref().unwrap_or(&default_pattern);
 
     // Handle --message-id search
@@ -534,6 +534,64 @@ fn parse_since_time(input: &str) -> Result<String> {
     }
 }
 
+fn handle_cli_command(command: &CliCommand, verbose: bool) -> Result<()> {
+    match command {
+        CliCommand::Convert(convert) => match &convert.command {
+            ConvertSubcommand::ClaudeToCodex(args) => {
+                handle_convert_claude_to_codex(args, verbose)?;
+            }
+        },
+    }
+
+    Ok(())
+}
+
+fn handle_convert_claude_to_codex(args: &ConvertClaudeToCodexArgs, verbose: bool) -> Result<()> {
+    anyhow::ensure!(
+        !(args.dry_run && args.stdout),
+        "--dry-run and --stdout cannot be used together"
+    );
+
+    let mode = if args.dry_run {
+        ConvertMode::DryRun
+    } else if args.stdout {
+        ConvertMode::Stdout
+    } else {
+        ConvertMode::WriteFile
+    };
+
+    let mut request = ConvertRequest::new(args.session_id.clone());
+    request.mode = mode;
+    request.codex_home = args.codex_home.clone();
+
+    let result = convert_session_to_codex(&request)?;
+
+    if args.stdout {
+        if let Some(rollout) = result.rollout_jsonl {
+            print!("{rollout}");
+        }
+        return Ok(());
+    }
+
+    println!("Session ID: {}", result.codex_session_id);
+    println!("Source: {}", result.source_file.display());
+    println!("Output: {}", result.output_path.display());
+    println!("Messages: {}", result.converted_messages);
+
+    if verbose {
+        eprintln!(
+            "Skipped: summaries={}, invalid_lines={}",
+            result.skipped_summaries, result.skipped_invalid_lines
+        );
+    }
+
+    if args.dry_run {
+        eprintln!("Dry run mode: no file was written.");
+    }
+
+    Ok(())
+}
+
 fn print_message_details(result: &SearchResult, use_color: bool) {
     use chrono::{DateTime, Local, TimeZone};
     use colored::Colorize;
@@ -830,5 +888,53 @@ mod tests {
     fn test_cli_latest_conflicts_with_latest_session() {
         let parsed = Cli::try_parse_from(["cxms", "--latest", "--latest-session"]);
         assert!(parsed.is_err());
+    }
+
+    #[test]
+    fn test_cli_parse_convert_subcommand() {
+        let parsed = Cli::try_parse_from([
+            "ccms",
+            "convert",
+            "claude-to-codex",
+            "--session-id",
+            "session-123",
+        ])
+        .expect("convert command should parse");
+
+        let Some(CliCommand::Convert(convert)) = parsed.command else {
+            panic!("expected convert subcommand");
+        };
+
+        let ConvertSubcommand::ClaudeToCodex(args) = convert.command;
+        assert_eq!(args.session_id, "session-123");
+    }
+
+    #[test]
+    fn test_cli_convert_conflicts_with_query_positional() {
+        let parsed = Cli::try_parse_from([
+            "ccms",
+            "search-term",
+            "convert",
+            "claude-to-codex",
+            "--session-id",
+            "session-123",
+        ]);
+        assert!(parsed.is_err());
+    }
+
+    #[test]
+    fn test_convert_handler_rejects_dry_run_and_stdout_together() {
+        let args = ConvertClaudeToCodexArgs {
+            session_id: "session-123".to_string(),
+            codex_home: None,
+            stdout: true,
+            dry_run: true,
+        };
+
+        let err = handle_convert_claude_to_codex(&args, false).unwrap_err();
+        assert!(
+            err.to_string()
+                .contains("--dry-run and --stdout cannot be used together")
+        );
     }
 }

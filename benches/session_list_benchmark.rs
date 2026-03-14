@@ -1,68 +1,126 @@
-use codspeed_criterion_compat::{Criterion, criterion_group, criterion_main};
-use cxms::search::file_discovery::discover_claude_files;
-use cxms::utils::path_encoding::encode_project_path;
-use std::path::Path;
+use cxms::SearchOptions;
+use cxms::interactive_ratatui::SearchService;
+use codspeed_criterion_compat::{Criterion, black_box, criterion_group, criterion_main};
+use serde_json::json;
+use std::fs::{self, File};
+use std::io::Write;
+use tempfile::tempdir;
 
-fn benchmark_glob_pattern_approach(c: &mut Criterion) {
-    c.bench_function("glob_pattern_approach", |b| {
-        b.iter(|| {
-            let project_path = "/Users/masatomokusaka/src/github.com/mkusaka/cxms";
+fn setup_codex_home(
+    num_days: usize,
+    sessions_per_day: usize,
+    project_cwd: &str,
+) -> tempfile::TempDir {
+    let temp_dir = tempdir().unwrap();
+    let sessions_dir = temp_dir.path().join(".codex").join("sessions");
+    fs::create_dir_all(&sessions_dir).unwrap();
 
-            // Convert to absolute path
-            let absolute_path = project_path.to_string();
+    for day_idx in 0..num_days {
+        let day = (day_idx % 28) + 1;
+        let day_dir = sessions_dir
+            .join("2026")
+            .join("03")
+            .join(format!("{day:02}"));
+        fs::create_dir_all(&day_dir).unwrap();
 
-            let encoded_path = encode_project_path(&absolute_path);
-            let claude_project_dir = format!("~/.claude/projects/{encoded_path}*/**/*.jsonl");
-
-            let _ = discover_claude_files(Some(&claude_project_dir));
-        })
-    });
-}
-
-// Test different project paths
-fn benchmark_project_paths(c: &mut Criterion) {
-    let test_paths = vec![
-        ("/", "root_path"),
-        ("/Users/masatomokusaka", "user_home"),
-        (
-            "/Users/masatomokusaka/src/github.com/mkusaka/cxms",
-            "specific_project",
-        ),
-        (".", "current_dir"),
-    ];
-
-    for (path, name) in test_paths {
-        c.bench_function(&format!("glob_pattern_{name}"), |b| {
-            b.iter(|| {
-                let absolute_path = if Path::new(path).is_absolute() {
-                    path.to_string()
-                } else {
-                    std::env::current_dir()
-                        .ok()
-                        .and_then(|cwd| {
-                            let joined = if path.starts_with('/') {
-                                std::path::PathBuf::from(path)
-                            } else {
-                                cwd.join(path)
-                            };
-                            joined.canonicalize().ok()
-                        })
-                        .map(|p| p.to_string_lossy().to_string())
-                        .unwrap_or_else(|| path.to_string())
-                };
-
-                let encoded_path = encode_project_path(&absolute_path);
-                let claude_project_dir = format!("~/.claude/projects/{encoded_path}*/**/*.jsonl");
-
-                let _ = discover_claude_files(Some(&claude_project_dir));
-            })
-        });
+        for session_idx in 0..sessions_per_day {
+            let file_path = day_dir.join(format!(
+                "rollout-2026-03-{day:02}T00-00-{session_idx:02}-session-{day_idx}-{session_idx}.jsonl"
+            ));
+            let mut file = File::create(&file_path).unwrap();
+            writeln!(
+                file,
+                "{}",
+                json!({
+                    "timestamp": "2026-03-15T00:00:00Z",
+                    "type": "session_meta",
+                    "payload": {
+                        "id": format!("session-{day_idx}-{session_idx}"),
+                        "cwd": project_cwd,
+                    }
+                })
+            )
+            .unwrap();
+            writeln!(
+                file,
+                "{}",
+                json!({
+                    "timestamp": "2026-03-15T00:00:01Z",
+                    "type": "response_item",
+                    "payload": {
+                        "type": "message",
+                        "role": "user",
+                        "content": [
+                            {
+                                "type": "input_text",
+                                "text": format!("## My request for Codex:\nInspect project session {session_idx}"),
+                            }
+                        ]
+                    }
+                })
+            )
+            .unwrap();
+            writeln!(
+                file,
+                "{}",
+                json!({
+                    "timestamp": "2026-03-15T00:00:02Z",
+                    "type": "response_item",
+                    "payload": {
+                        "type": "message",
+                        "role": "assistant",
+                        "content": [
+                            {
+                                "type": "output_text",
+                                "text": format!("Session {session_idx} indexed"),
+                            }
+                        ]
+                    }
+                })
+            )
+            .unwrap();
+        }
     }
+
+    temp_dir
 }
 
-criterion_group!(
-    benches,
-    benchmark_glob_pattern_approach,
-    benchmark_project_paths
-);
+fn benchmark_get_all_sessions(c: &mut Criterion) {
+    let temp_home = setup_codex_home(30, 20, "/Users/masatomokusaka/src/github.com/mkusaka/cxms");
+    let codex_home = temp_home.path().to_string_lossy().to_string();
+
+    unsafe {
+        std::env::set_var("HOME", &codex_home);
+    }
+
+    let mut group = c.benchmark_group("session_list");
+
+    group.bench_function("get_all_sessions_filtered_project", |b| {
+        let service = SearchService::new(SearchOptions {
+            project_path: Some("/Users/masatomokusaka/src/github.com/mkusaka/cxms".to_string()),
+            ..Default::default()
+        });
+
+        b.iter(|| {
+            let sessions = service.get_all_sessions().unwrap();
+            black_box(sessions.len())
+        });
+    });
+
+    group.bench_function("get_all_sessions_all_projects", |b| {
+        let service = SearchService::new(SearchOptions {
+            project_path: Some("/".to_string()),
+            ..Default::default()
+        });
+
+        b.iter(|| {
+            let sessions = service.get_all_sessions().unwrap();
+            black_box(sessions.len())
+        });
+    });
+
+    group.finish();
+}
+
+criterion_group!(benches, benchmark_get_all_sessions);
 criterion_main!(benches);
