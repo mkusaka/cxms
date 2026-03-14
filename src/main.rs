@@ -347,7 +347,7 @@ fn main() -> Result<()> {
     }
 
     // Debug: only search specific file
-    let debug_file = "/Users/masatomokusaka/.claude/projects/-Users-masatomokusaka-src-github-com-mkusaka-bookmark-agent/9ca2db47-82d6-4da7-998e-3d7cd28ce5b5.jsonl";
+    let debug_file = "/Users/masatomokusaka/.codex/sessions/debug.jsonl";
     let pattern_to_use = if std::env::var("DEBUG_SINGLE_FILE").is_ok() {
         eprintln!("DEBUG: Searching only {debug_file}");
         debug_file
@@ -534,64 +534,6 @@ fn parse_since_time(input: &str) -> Result<String> {
     }
 }
 
-fn handle_cli_command(command: &CliCommand, verbose: bool) -> Result<()> {
-    match command {
-        CliCommand::Convert(convert) => match &convert.command {
-            ConvertSubcommand::ClaudeToCodex(args) => {
-                handle_convert_claude_to_codex(args, verbose)?;
-            }
-        },
-    }
-
-    Ok(())
-}
-
-fn handle_convert_claude_to_codex(args: &ConvertClaudeToCodexArgs, verbose: bool) -> Result<()> {
-    anyhow::ensure!(
-        !(args.dry_run && args.stdout),
-        "--dry-run and --stdout cannot be used together"
-    );
-
-    let mode = if args.dry_run {
-        ConvertMode::DryRun
-    } else if args.stdout {
-        ConvertMode::Stdout
-    } else {
-        ConvertMode::WriteFile
-    };
-
-    let mut request = ConvertRequest::new(args.session_id.clone());
-    request.mode = mode;
-    request.codex_home = args.codex_home.clone();
-
-    let result = convert_session_to_codex(&request)?;
-
-    if args.stdout {
-        if let Some(rollout) = result.rollout_jsonl {
-            print!("{rollout}");
-        }
-        return Ok(());
-    }
-
-    println!("Session ID: {}", result.codex_session_id);
-    println!("Source: {}", result.source_file.display());
-    println!("Output: {}", result.output_path.display());
-    println!("Messages: {}", result.converted_messages);
-
-    if verbose {
-        eprintln!(
-            "Skipped: summaries={}, invalid_lines={}",
-            result.skipped_summaries, result.skipped_invalid_lines
-        );
-    }
-
-    if args.dry_run {
-        eprintln!("Dry run mode: no file was written.");
-    }
-
-    Ok(())
-}
-
 fn print_message_details(result: &SearchResult, use_color: bool) {
     use chrono::{DateTime, Local, TimeZone};
     use colored::Colorize;
@@ -702,7 +644,7 @@ fn collect_statistics(results: &[SearchResult]) -> Statistics {
 
 fn print_query_help() {
     println!(
-        r#"Claude Search Query Syntax Help
+        r#"Codex Search Query Syntax Help
 
 BASIC QUERIES:
   hello                   Literal search (case-insensitive)
@@ -888,53 +830,5 @@ mod tests {
     fn test_cli_latest_conflicts_with_latest_session() {
         let parsed = Cli::try_parse_from(["cxms", "--latest", "--latest-session"]);
         assert!(parsed.is_err());
-    }
-
-    #[test]
-    fn test_cli_parse_convert_subcommand() {
-        let parsed = Cli::try_parse_from([
-            "ccms",
-            "convert",
-            "claude-to-codex",
-            "--session-id",
-            "session-123",
-        ])
-        .expect("convert command should parse");
-
-        let Some(CliCommand::Convert(convert)) = parsed.command else {
-            panic!("expected convert subcommand");
-        };
-
-        let ConvertSubcommand::ClaudeToCodex(args) = convert.command;
-        assert_eq!(args.session_id, "session-123");
-    }
-
-    #[test]
-    fn test_cli_convert_conflicts_with_query_positional() {
-        let parsed = Cli::try_parse_from([
-            "ccms",
-            "search-term",
-            "convert",
-            "claude-to-codex",
-            "--session-id",
-            "session-123",
-        ]);
-        assert!(parsed.is_err());
-    }
-
-    #[test]
-    fn test_convert_handler_rejects_dry_run_and_stdout_together() {
-        let args = ConvertClaudeToCodexArgs {
-            session_id: "session-123".to_string(),
-            codex_home: None,
-            stdout: true,
-            dry_run: true,
-        };
-
-        let err = handle_convert_claude_to_codex(&args, false).unwrap_err();
-        assert!(
-            err.to_string()
-                .contains("--dry-run and --stdout cannot be used together")
-        );
     }
 }
