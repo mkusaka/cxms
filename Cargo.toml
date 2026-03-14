@@ -1,0 +1,109 @@
+[package]
+name = "ccms"
+version = "0.0.1"
+edition = "2024"
+authors = ["CCMS CLI"]
+description = "High-performance CLI for searching Claude session JSONL files"
+
+[[bin]]
+name = "ccms"
+path = "src/main.rs"
+
+[dependencies]
+# CLI and argument parsing
+clap = { version = "4.5", features = ["derive", "env"] }
+clap_complete = "4.5"
+
+# JSON parsing with SIMD acceleration
+simd-json = "0.15.1"
+sonic-rs = { version = "0.3" }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+
+# File system and path handling
+globset = "0.4"
+walkdir = "2.5"
+dirs = "6.0"
+
+# Regex and string matching
+regex = "1.10"
+lru = "0.16"
+
+# Parallel processing
+rayon = "1.10"
+crossbeam = "0.8"
+
+
+# Error handling
+anyhow = "1.0"
+
+# Date/time handling
+chrono = "0.4"
+parse_datetime = "0.11"
+
+# Query parsing
+nom = "8.0"
+
+# Progress indication
+indicatif = "0.18"
+
+# Colored output
+colored = "3.0"
+
+# TUI framework
+ratatui = { version = "0.30.0-alpha.5", features = ["unstable-rendered-line-info"] }
+crossterm = "0.29"
+
+
+# Profiling and tracing
+pprof = { version = "0.15", features = ["flamegraph", "prost-codec"], optional = true }
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter", "fmt", "json"] }
+tracing-flame = { version = "0.2", optional = true }
+console-subscriber = { version = "0.4", optional = true }
+
+# Note: Tokio has been removed in favor of Smol for async operations
+
+# Smol runtime and required dependencies
+smol = "2.0"
+futures-lite = "2.5"
+blocking = "1.6"
+num_cpus = { version = "1.17" }
+
+[dev-dependencies]
+codspeed-criterion-compat = "=3.0.5"
+tempfile = "=3.20.0"
+
+[[bench]]
+name = "search_benchmark"
+harness = false
+
+[[bench]]
+name = "component_benchmark"
+harness = false
+
+[[bench]]
+name = "large_file_benchmark"
+harness = false
+
+[[bench]]
+name = "realistic_benchmark"
+harness = false
+
+[[bench]]
+name = "interactive_ui_benchmark"
+harness = false
+
+[[bench]]
+name = "rayon_vs_tokio_benchmark"
+harness = false
+
+[profile.release]
+lto = true
+codegen-units = 1
+opt-level = 3
+debug = true  # Enable debug symbols for better profiling
+
+[features]
+default = []
+profiling = ["pprof"]
