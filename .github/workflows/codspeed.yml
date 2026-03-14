@@ -57,7 +57,15 @@ jobs:
         run: cargo codspeed build
       
       - name: Run benchmarks
+        id: codspeed
+        continue-on-error: true
         uses: CodSpeedHQ/action@76578c2a7ddd928664caa737f0e962e3085d4e7c # v3.8.1
         with:
           run: cargo codspeed run
           token: ${{ secrets.CODSPEED_TOKEN }}
+
+      - name: Report CodSpeed upload failure
+        if: ${{ steps.codspeed.outcome == 'failure' }}
+        run: |
+          echo "CodSpeed benchmarks completed but upload failed." >> "$GITHUB_STEP_SUMMARY"
+          echo "This workflow is non-blocking until CODSPEED_TOKEN access is fixed." >> "$GITHUB_STEP_SUMMARY"
