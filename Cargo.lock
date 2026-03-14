@@ -412,43 +412,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "cxms"
-version = "0.0.1"
-dependencies = [
- "anyhow",
- "async-fs",
- "blocking",
- "chrono",
- "clap",
- "clap_complete",
- "codspeed-criterion-compat",
- "colored 3.1.1",
- "crossbeam",
- "crossterm",
- "dirs",
- "futures-lite",
- "globset",
- "jwalk",
- "lru",
- "mimalloc",
- "nom 8.0.0",
- "num_cpus",
- "parse_datetime",
- "pprof",
- "ratatui",
- "rayon",
- "regex",
- "serde",
- "serde_json",
- "signal-hook",
- "smol",
- "sonic-rs",
- "tempfile",
- "tracing",
- "tracing-subscriber",
-]
-
-[[package]]
 name = "cfg-if"
 version = "1.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -840,7 +803,6 @@ dependencies = [
  "tempfile",
  "tracing",
  "tracing-subscriber",
- "uuid",
 ]
 
 [[package]]
