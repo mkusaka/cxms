@@ -281,10 +281,10 @@ mod tests {
     #[test]
     fn test_initial_search_no_pattern_display() {
         let mut app = InteractiveSearch::new(SearchOptions::default());
-        app.pattern = "~/.claude/**/*.jsonl".to_string();
+        app.pattern = "~/.codex/sessions/**/*.jsonl".to_string();
 
         // Pattern should be stored internally but not shown in search query
-        assert_eq!(app.pattern, "~/.claude/**/*.jsonl");
+        assert_eq!(app.pattern, "~/.codex/sessions/**/*.jsonl");
         assert_eq!(app.state.search.query, "");
 
         // Render and check that pattern is not visible in search bar
@@ -294,7 +294,7 @@ mod tests {
             .draw(|f| app.renderer.render(f, &app.state))
             .unwrap();
         let buffer = terminal.backend().buffer();
-        assert!(!buffer_contains(buffer, "~/.claude"));
+        assert!(!buffer_contains(buffer, "~/.codex"));
     }
 
     /// Test 's' key shortcut to jump directly to session viewer from search results

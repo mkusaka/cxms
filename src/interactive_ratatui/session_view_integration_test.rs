@@ -14,14 +14,14 @@ mod tests {
                 timestamp: "2024-01-01T00:00:00Z".to_string(),
                 session_id: "test-session".to_string(),
                 role: "user".to_string(),
-                text: "Hello Claude".to_string(),
+                text: "Hello Codex".to_string(),
                 message_type: "message".to_string(),
                 query: QueryCondition::Literal {
                     pattern: String::new(),
                     case_sensitive: false,
                 },
                 cwd: "/test".to_string(),
-                raw_json: Some(r#"{"type":"user","message":{"role":"user","content":"Hello Claude"}}"#.to_string()),
+                raw_json: Some(r#"{"type":"user","message":{"role":"user","content":"Hello Codex"}}"#.to_string()),
             },
             SearchResult {
                 file: "/path/to/session.jsonl".to_string(),

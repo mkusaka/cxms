@@ -21,7 +21,7 @@ impl HelpDialog {
     fn get_help_text() -> Vec<Line<'static>> {
         vec![
             Line::from(vec![Span::styled(
-                "Claude Session Message Search - Interactive Mode",
+                "Codex Session Message Search - Interactive Mode",
                 Style::default()
                     .fg(Color::Cyan)
                     .add_modifier(Modifier::BOLD),

@@ -2,7 +2,7 @@
 
 ## Overview
 
-The interactive mode provides a terminal-based user interface for searching Claude session messages in real-time. Interactive mode starts automatically when `cxms` is run without a query argument. It uses the `ratatui` crate with crossterm backend for terminal control and implements features like incremental search, result navigation, role filtering, and clipboard operations.
+The interactive mode provides a terminal-based user interface for searching Codex session messages in real-time. Interactive mode starts automatically when `cxms` is run without a query argument. It uses the `ratatui` crate with crossterm backend for terminal control and implements features like incremental search, result navigation, role filtering, and clipboard operations.
 
 **Automatic Launch**: Running `cxms` without any arguments will start interactive mode by default.
 
@@ -13,7 +13,7 @@ The interactive mode provides a terminal-based user interface for searching Clau
 ```
 [Search] | Session List                    
 ──────────────────────────────────────────────────────────────────────────────
-Interactive Claude Search
+Interactive Codex Search
 Type to search, ↑/↓ to navigate, Enter to select, Tab for role filter, Ctrl+R to reload, Ctrl+C (2x) to exit
 
 Search: [cursor]
@@ -26,7 +26,7 @@ Search: [cursor]
 When a query is entered, the interface shows:
 
 ```
-Interactive Claude Search
+Interactive Codex Search
 Type to search, ↑/↓ to navigate, Enter to select, Tab for role filter, Ctrl+R to reload, Ctrl+C (2x) to exit
 
 Search: [query]
