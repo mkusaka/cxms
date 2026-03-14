@@ -11,10 +11,6 @@ pub enum Command {
     LoadSession(String),
     LoadSessionList,
     LoadMore(usize), // Load more results starting from offset
-    ConvertSessionToCodex {
-        session_id: String,
-        file_path: String,
-    },
     CopyToClipboard(CopyContent),
     ShowMessage(String),
     ClearMessage,
