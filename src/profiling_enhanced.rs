@@ -169,7 +169,7 @@ impl EnhancedProfiler {
 
         // Shorten common prefixes
         let short = clean
-            .replace("ccms::search::", "search::")
+            .replace("cxms::search::", "search::")
             .replace("tokio::runtime::", "tokio::")
             .replace("futures::", "fut::")
             .replace("std::sync::", "sync::")

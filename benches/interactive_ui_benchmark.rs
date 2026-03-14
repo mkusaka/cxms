@@ -1,4 +1,5 @@
-use ccms::interactive_ratatui::ui::{
+use codspeed_criterion_compat::{BatchSize, Criterion, black_box, criterion_group, criterion_main};
+use cxms::interactive_ratatui::ui::{
     app_state::AppState,
     components::{
         Component, result_list::ResultList, search_bar::SearchBar, session_viewer::SessionViewer,
@@ -6,9 +7,8 @@ use ccms::interactive_ratatui::ui::{
     events::Message,
     renderer::Renderer,
 };
-use ccms::schemas::{BaseMessage, UserContent, UserMessageContent};
-use ccms::{QueryCondition, SearchResult, SessionMessage};
-use codspeed_criterion_compat::{BatchSize, Criterion, black_box, criterion_group, criterion_main};
+use cxms::schemas::{BaseMessage, UserContent, UserMessageContent};
+use cxms::{QueryCondition, SearchResult, SessionMessage};
 use ratatui::{Terminal, backend::TestBackend, layout::Rect};
 
 fn create_test_search_results(count: usize) -> Vec<SearchResult> {
@@ -335,7 +335,7 @@ fn benchmark_full_frame_rendering(c: &mut Criterion) {
         let mut state = AppState::new();
         let test_results = create_test_search_results(10);
         state.ui.selected_result = Some(test_results[0].clone());
-        state.mode = ccms::interactive_ratatui::ui::app_state::Mode::MessageDetail;
+        state.mode = cxms::interactive_ratatui::ui::app_state::Mode::MessageDetail;
 
         b.iter_batched(
             || TestBackend::new(120, 40),

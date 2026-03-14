@@ -1,6 +1,6 @@
-use ccms::{SearchEngineTrait, SearchOptions, SmolEngine, parse_query};
 use codspeed_criterion_compat::{BenchmarkId, black_box};
 use codspeed_criterion_compat::{Criterion, criterion_group, criterion_main};
+use cxms::{SearchEngineTrait, SearchOptions, SmolEngine, parse_query};
 use std::fs::File;
 use std::io::Write;
 use tempfile::tempdir;

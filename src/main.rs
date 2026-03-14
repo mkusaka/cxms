@@ -3,23 +3,23 @@
 static GLOBAL: mimalloc::MiMalloc = mimalloc::MiMalloc;
 
 use anyhow::Result;
+use chrono::{DateTime, Local, Utc};
+use clap::{Command, CommandFactory, Parser, ValueEnum};
+use clap_complete::{Generator, Shell, generate};
 #[cfg(feature = "profiling")]
-use ccms::profiling_enhanced;
-use ccms::{
+use cxms::profiling_enhanced;
+use cxms::{
     QueryCondition, RayonEngine, SearchEngineTrait, SearchOptions, SearchResult, SmolEngine,
     Statistics, default_claude_pattern, format_search_result,
     interactive_ratatui::InteractiveSearch, parse_query, profiling,
 };
-use chrono::{DateTime, Local, Utc};
-use clap::{Command, CommandFactory, Parser, ValueEnum};
-use clap_complete::{Generator, Shell, generate};
 use parse_datetime::parse_datetime_at_date;
 use std::collections::HashMap;
 use std::io::{self, Write};
 
 #[derive(Parser)]
 #[command(
-    name = "ccms",
+    name = "cxms",
     version,
     about = "High-performance CLI for searching Claude session JSONL files",
     long_about = None
@@ -381,7 +381,7 @@ fn main() -> Result<()> {
     // If stats flag is set, collect and display statistics
     if cli.stats {
         let stats = collect_statistics(&results);
-        println!("{}", ccms::stats::format_statistics(&stats, !cli.no_color));
+        println!("{}", cxms::stats::format_statistics(&stats, !cli.no_color));
 
         eprintln!("\n⏱️  Search completed in {}ms", duration.as_millis());
         if total_count > results.len() {
@@ -711,7 +711,7 @@ mod tests {
 
     #[test]
     fn test_collect_statistics() {
-        use ccms::query::QueryCondition;
+        use cxms::query::QueryCondition;
 
         let results = vec![
             SearchResult {
@@ -816,19 +816,19 @@ mod tests {
 
     #[test]
     fn test_cli_latest_conflicts_with_session_id() {
-        let parsed = Cli::try_parse_from(["ccms", "--latest", "--session-id", "sid"]);
+        let parsed = Cli::try_parse_from(["cxms", "--latest", "--session-id", "sid"]);
         assert!(parsed.is_err());
     }
 
     #[test]
     fn test_cli_latest_session_conflicts_with_session_id() {
-        let parsed = Cli::try_parse_from(["ccms", "--latest-session", "--session-id", "sid"]);
+        let parsed = Cli::try_parse_from(["cxms", "--latest-session", "--session-id", "sid"]);
         assert!(parsed.is_err());
     }
 
     #[test]
     fn test_cli_latest_conflicts_with_latest_session() {
-        let parsed = Cli::try_parse_from(["ccms", "--latest", "--latest-session"]);
+        let parsed = Cli::try_parse_from(["cxms", "--latest", "--latest-session"]);
         assert!(parsed.is_err());
     }
 }

@@ -1,7 +1,7 @@
-use ccms::{QueryCondition, SearchResult, Statistics, format_statistics};
 use codspeed_criterion_compat::{
     BenchmarkId, Criterion, black_box, criterion_group, criterion_main,
 };
+use cxms::{QueryCondition, SearchResult, Statistics, format_statistics};
 use std::collections::HashSet;
 
 // Generate test search results for benchmarking
