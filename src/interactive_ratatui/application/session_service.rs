@@ -1,5 +1,5 @@
-use crate::SessionMessage;
 use crate::interactive_ratatui::application::cache_service::CacheService;
+use crate::schemas::SearchableMessage;
 use anyhow::Result;
 use std::path::Path;
 use std::sync::{Arc, Mutex};
@@ -13,7 +13,7 @@ impl SessionService {
         Self { cache }
     }
 
-    pub fn load_session(&self, file_path: &str) -> Result<Vec<SessionMessage>> {
+    pub fn load_session(&self, file_path: &str) -> Result<Vec<SearchableMessage>> {
         let path = Path::new(file_path);
         let mut cache = self.cache.lock().unwrap();
         let cached_file = cache.get_messages(path)?;

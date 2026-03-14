@@ -3,7 +3,7 @@ name = "cxms"
 version = "0.0.1"
 edition = "2024"
 authors = ["CXMS CLI"]
-description = "High-performance CLI for searching Claude session JSONL files"
+description = "High-performance CLI for searching Codex session rollout JSONL files"
 
 [[bin]]
 name = "cxms"

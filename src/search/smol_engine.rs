@@ -7,10 +7,10 @@ use std::path::Path;
 use std::sync::Arc;
 
 use super::engine::SearchEngineTrait;
-use super::file_discovery::{discover_claude_files, expand_tilde};
+use super::file_discovery::{discover_codex_files, expand_tilde};
 use crate::interactive_ratatui::domain::models::SearchOrder;
 use crate::query::{QueryCondition, SearchOptions, SearchResult};
-use crate::schemas::SessionMessage;
+use crate::schemas::{SessionContext, parse_searchable_message};
 use crate::utils::path_encoding;
 
 // Initialize blocking thread pool optimization
@@ -93,7 +93,7 @@ impl SmolEngine {
         let files = if expanded_pattern.is_file() {
             vec![expanded_pattern]
         } else {
-            discover_claude_files(Some(pattern))?
+            discover_codex_files(Some(pattern))?
         };
         let file_discovery_time = file_discovery_start.elapsed();
 
@@ -243,8 +243,11 @@ async fn search_file(
     options: &SearchOptions,
 ) -> Result<Vec<SearchResult>> {
     let file_path_owned = file_path.to_owned();
+    let file_path_str = file_path_owned.to_string_lossy().to_string();
     let query_owned = query.clone();
     let options_owned = options.clone();
+    let should_capture_raw_json =
+        options_owned.session_id.is_some() || options_owned.message_id.is_some();
 
     // Use smol's blocking executor with larger buffer for better throughput
     blocking::unblock(move || {
@@ -293,6 +296,7 @@ async fn search_file(
         let mut line_buffer = Vec::with_capacity(16 * 1024); // 2x larger reusable line buffer
         let mut is_first_line = true;
         let mut found_summary_first = false;
+        let mut session_context = SessionContext::default();
 
         loop {
             line_buffer.clear();
@@ -316,14 +320,13 @@ async fn search_file(
 
             // Parse JSON - Always use sonic-rs for optimized engine
             // Use from_slice to avoid UTF-8 string conversion
-            let message: Result<SessionMessage, _> = sonic_rs::from_slice(&line_buffer);
+            if let Some(message) = parse_searchable_message(&line_buffer, &mut session_context) {
+                    let message_type = message.get_type();
 
-            match message {
-                Ok(message) => {
                     // Check if first message is summary
                     if is_first_line {
                         is_first_line = false;
-                        if message.get_type() == "summary" {
+                        if message_type == "summary" {
                             found_summary_first = true;
                             if options_owned.verbose {
                                 eprintln!(
@@ -356,26 +359,28 @@ async fn search_file(
                             // Apply inline filters
                             if let Some(role) = &options_owned.role {
                                 // For summary messages, only match if explicitly filtering for "summary"
-                                if message.get_type() == "summary" {
+                                if message_type == "summary" {
                                     if role != "summary" {
                                         continue;
                                     }
-                                } else if message.get_type() != role {
+                                } else if message_type != role {
                                     continue;
                                 }
                             }
 
                             if let Some(session_id) = &options_owned.session_id
-                                && message.get_session_id() != Some(session_id) {
-                                    continue;
-                                }
+                                && message.get_session_id() != Some(session_id)
+                            {
+                                continue;
+                            }
 
-                            // Check project_path filter (matches against file path)
-                            if let Some(project_path) = &options_owned.project_path {
-                                let file_path_str = file_path_owned.to_string_lossy();
-                                if !path_encoding::file_belongs_to_project(&file_path_str, project_path) {
-                                    continue;
-                                }
+                            if let Some(project_path) = &options_owned.project_path
+                                && !path_encoding::cwd_belongs_to_project(
+                                    message.get_cwd().unwrap_or_default(),
+                                    project_path,
+                                )
+                            {
+                                continue;
                             }
 
                             // Determine timestamp based on message type (matching main branch logic)
@@ -384,7 +389,7 @@ async fn search_file(
                                 .map(|ts| ts.to_string())
                                 .or_else(|| {
                                     // For summary messages, prefer first_timestamp over latest_timestamp
-                                    if message.get_type() == "summary" {
+                                    if message_type == "summary" {
                                         first_timestamp.clone()
                                     } else {
                                         latest_timestamp.clone()
@@ -393,33 +398,31 @@ async fn search_file(
                                 .unwrap_or_else(|| file_ctime.clone());
 
                             // For SessionViewer and message details, we need raw_json
-                            let raw_json = if options_owned.session_id.is_some() || options_owned.message_id.is_some() {
+                            let raw_json = if should_capture_raw_json {
                                 // Convert line_buffer to String for raw_json
                                 Some(String::from_utf8_lossy(&line_buffer).to_string())
                             } else {
                                 None
                             };
 
+                            let message_type_owned = message_type.to_string();
+
                             let result = SearchResult {
-                                file: file_path_owned.to_string_lossy().to_string(),
+                                file: file_path_str.clone(),
                                 uuid: message.get_uuid().unwrap_or("").to_string(),
                                 timestamp: final_timestamp,
                                 session_id: message.get_session_id().unwrap_or("").to_string(),
-                                role: message.get_type().to_string(),
+                                role: message_type_owned.clone(),
                                 text: message.get_content_text(),
-                                message_type: message.get_type().to_string(),
+                                message_type: message_type_owned,
                                 query: query_owned.clone(),
                                 cwd: message.get_cwd().unwrap_or("").to_string(),
                                 raw_json,
                             };
                             results.push(result);
                         }
-                }
-                Err(e) => {
-                    if options_owned.verbose {
-                        eprintln!("Failed to parse JSON in {file_path_owned:?}: {e:?}");
-                    }
-                }
+            } else if options_owned.verbose {
+                eprintln!("Skipped non-message JSON in {file_path_owned:?}");
             }
         }
 
@@ -438,8 +441,65 @@ async fn search_file(
 mod tests {
     use super::*;
     use crate::query::parse_query;
+    use serde_json::json;
     use std::io::Write;
     use tempfile::tempdir;
+
+    fn write_codex_rollout(file: &mut File) -> Result<()> {
+        writeln!(
+            file,
+            "{}",
+            json!({
+                "timestamp": "2026-03-15T00:00:00Z",
+                "type": "session_meta",
+                "payload": {
+                    "id": "codex-session",
+                    "cwd": "/repo/project",
+                }
+            })
+        )?;
+        writeln!(
+            file,
+            "{}",
+            json!({
+                "timestamp": "2026-03-15T00:00:01Z",
+                "type": "response_item",
+                "payload": {
+                    "type": "message",
+                    "role": "user",
+                    "content": [
+                        {
+                            "type": "input_text",
+                            "text": "<environment_context>\nignored\n</environment_context>"
+                        },
+                        {
+                            "type": "input_text",
+                            "text": "## My request for Codex:\nFix the search parser"
+                        }
+                    ]
+                }
+            })
+        )?;
+        writeln!(
+            file,
+            "{}",
+            json!({
+                "timestamp": "2026-03-15T00:00:02Z",
+                "type": "response_item",
+                "payload": {
+                    "type": "message",
+                    "role": "assistant",
+                    "content": [
+                        {
+                            "type": "output_text",
+                            "text": "Search parser updated"
+                        }
+                    ]
+                }
+            })
+        )?;
+        Ok(())
+    }
 
     #[test]
     fn test_search_engine() -> Result<()> {
@@ -466,6 +526,28 @@ mod tests {
         assert_eq!(results.len(), 1);
         assert_eq!(results[0].role, "user");
         assert!(results[0].text.contains("Hello world"));
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_search_codex_rollout_messages() -> Result<()> {
+        let temp_dir = tempdir()?;
+        let test_file = temp_dir.path().join("codex.jsonl");
+
+        let mut file = File::create(&test_file)?;
+        write_codex_rollout(&mut file)?;
+
+        let options = SearchOptions::default();
+        let engine = SmolEngine::new(options);
+        let query = parse_query("\"Fix the search parser\"")?;
+        let (results, _, _) = engine.search(test_file.to_str().unwrap(), query)?;
+
+        assert_eq!(results.len(), 1);
+        assert_eq!(results[0].role, "user");
+        assert_eq!(results[0].session_id, "codex-session");
+        assert_eq!(results[0].cwd, "/repo/project");
+        assert_eq!(results[0].text, "Fix the search parser");
 
         Ok(())
     }

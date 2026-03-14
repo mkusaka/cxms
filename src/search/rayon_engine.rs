@@ -7,10 +7,10 @@ use std::path::Path;
 use std::sync::Arc;
 
 use super::engine::SearchEngineTrait;
-use super::file_discovery::{discover_claude_files, expand_tilde};
+use super::file_discovery::{discover_codex_files, expand_tilde};
 use crate::interactive_ratatui::domain::models::SearchOrder;
 use crate::query::{QueryCondition, SearchOptions, SearchResult};
-use crate::schemas::SessionMessage;
+use crate::schemas::{SessionContext, parse_searchable_message};
 use crate::utils::path_encoding;
 
 pub struct RayonEngine {
@@ -56,7 +56,7 @@ impl SearchEngineTrait for RayonEngine {
         let files = if expanded_pattern.is_file() {
             vec![expanded_pattern]
         } else {
-            discover_claude_files(Some(pattern))?
+            discover_codex_files(Some(pattern))?
         };
         let file_discovery_time = file_discovery_start.elapsed();
 
@@ -239,6 +239,7 @@ pub(super) fn search_file(
     let mut line_buffer = Vec::with_capacity(16 * 1024); // Same buffer size as Smol
     let mut is_first_line = true;
     let mut found_summary_first = false;
+    let mut session_context = SessionContext::default();
 
     loop {
         line_buffer.clear();
@@ -260,112 +261,104 @@ pub(super) fn search_file(
             }
         }
 
-        // Parse JSON - Always use sonic-rs for optimized engine
-        // Use from_slice to avoid UTF-8 string conversion
-        let message: Result<SessionMessage, _> = sonic_rs::from_slice(&line_buffer);
+        if let Some(message) = parse_searchable_message(&line_buffer, &mut session_context) {
+            // Check if first message is summary
+            if is_first_line {
+                is_first_line = false;
+                if message.get_type() == "summary" {
+                    found_summary_first = true;
+                    if options.verbose {
+                        eprintln!("DEBUG: Found summary at first line in {file_path:?}");
+                    }
+                }
+            }
 
-        match message {
-            Ok(message) => {
-                // Check if first message is summary
-                if is_first_line {
-                    is_first_line = false;
+            // Update timestamps
+            if let Some(ts) = message.get_timestamp() {
+                latest_timestamp = Some(ts.to_string());
+                // Track first timestamp after summary for summary messages
+                if first_timestamp.is_none() && found_summary_first {
+                    first_timestamp = Some(ts.to_string());
+                    if options.verbose {
+                        eprintln!(
+                            "DEBUG: Found first timestamp '{ts}' after summary in {file_path:?}"
+                        );
+                    }
+                }
+            }
+
+            // Get searchable text
+            let searchable_text = message.get_searchable_text();
+            let content_text = message.get_content_text();
+
+            // Apply query condition
+            if let Ok(matches) = query.evaluate(&searchable_text)
+                && matches
+            {
+                // Apply inline filters
+                if let Some(role) = &options.role {
+                    // For summary messages, only match if explicitly filtering for "summary"
                     if message.get_type() == "summary" {
-                        found_summary_first = true;
-                        if options.verbose {
-                            eprintln!("DEBUG: Found summary at first line in {file_path:?}");
-                        }
-                    }
-                }
-
-                // Update timestamps
-                if let Some(ts) = message.get_timestamp() {
-                    latest_timestamp = Some(ts.to_string());
-                    // Track first timestamp after summary for summary messages
-                    if first_timestamp.is_none() && found_summary_first {
-                        first_timestamp = Some(ts.to_string());
-                        if options.verbose {
-                            eprintln!(
-                                "DEBUG: Found first timestamp '{ts}' after summary in {file_path:?}"
-                            );
-                        }
-                    }
-                }
-
-                // Get searchable text
-                let text = message.get_searchable_text();
-
-                // Apply query condition
-                if let Ok(matches) = query.evaluate(&text)
-                    && matches
-                {
-                    // Apply inline filters
-                    if let Some(role) = &options.role {
-                        // For summary messages, only match if explicitly filtering for "summary"
-                        if message.get_type() == "summary" {
-                            if role != "summary" {
-                                continue;
-                            }
-                        } else if message.get_type() != role {
+                        if role != "summary" {
                             continue;
                         }
-                    }
-
-                    if let Some(session_id) = &options.session_id
-                        && message.get_session_id() != Some(session_id)
-                    {
+                    } else if message.get_type() != role {
                         continue;
                     }
+                }
 
-                    // Check project_path filter (matches against file path)
-                    if let Some(project_path) = &options.project_path {
-                        let file_path_str = file_path.to_string_lossy();
-                        if !path_encoding::file_belongs_to_project(&file_path_str, project_path) {
-                            continue;
-                        }
+                if let Some(session_id) = &options.session_id
+                    && message.get_session_id() != Some(session_id)
+                {
+                    continue;
+                }
+
+                if let Some(project_path) = &options.project_path {
+                    if !path_encoding::cwd_belongs_to_project(
+                        message.get_cwd().unwrap_or_default(),
+                        project_path,
+                    ) {
+                        continue;
                     }
-
-                    // Create result
-                    let timestamp = if message.get_type() == "summary" {
-                        // Use first non-summary timestamp or file ctime
-                        first_timestamp
-                            .as_ref()
-                            .or(latest_timestamp.as_ref())
-                            .cloned()
-                            .unwrap_or_else(|| file_ctime.clone())
-                    } else {
-                        message
-                            .get_timestamp()
-                            .map(|s| s.to_string())
-                            .unwrap_or_else(|| file_ctime.clone())
-                    };
-
-                    // For SessionViewer and message details, we need raw_json
-                    let raw_json = if options.session_id.is_some() || options.message_id.is_some() {
-                        // Convert line_buffer to String for raw_json
-                        Some(String::from_utf8_lossy(&line_buffer).to_string())
-                    } else {
-                        None
-                    };
-                    results.push(SearchResult {
-                        timestamp,
-                        role: message.get_type().to_string(),
-                        text,
-                        file: file_path.display().to_string(),
-                        uuid: message.get_uuid().unwrap_or("").to_string(),
-                        session_id: message.get_session_id().unwrap_or("").to_string(),
-                        query: query.clone(),
-                        cwd: message.get_cwd().unwrap_or("").to_string(),
-                        message_type: message.get_type().to_string(),
-                        raw_json,
-                    });
                 }
+
+                // Create result
+                let timestamp = if message.get_type() == "summary" {
+                    // Use first non-summary timestamp or file ctime
+                    first_timestamp
+                        .as_ref()
+                        .or(latest_timestamp.as_ref())
+                        .cloned()
+                        .unwrap_or_else(|| file_ctime.clone())
+                } else {
+                    message
+                        .get_timestamp()
+                        .map(|s| s.to_string())
+                        .unwrap_or_else(|| file_ctime.clone())
+                };
+
+                // For SessionViewer and message details, we need raw_json
+                let raw_json = if options.session_id.is_some() || options.message_id.is_some() {
+                    // Convert line_buffer to String for raw_json
+                    Some(String::from_utf8_lossy(&line_buffer).to_string())
+                } else {
+                    None
+                };
+                results.push(SearchResult {
+                    timestamp,
+                    role: message.get_type().to_string(),
+                    text: content_text,
+                    file: file_path.display().to_string(),
+                    uuid: message.get_uuid().unwrap_or("").to_string(),
+                    session_id: message.get_session_id().unwrap_or("").to_string(),
+                    query: query.clone(),
+                    cwd: message.get_cwd().unwrap_or("").to_string(),
+                    message_type: message.get_type().to_string(),
+                    raw_json,
+                });
             }
-            Err(e) => {
-                if options.verbose {
-                    eprintln!("Failed to parse JSON in {file_path:?}: {e}");
-                }
-                // Continue processing other lines
-            }
+        } else if options.verbose {
+            eprintln!("Skipped non-message JSON in {file_path:?}");
         }
     }
 
@@ -376,8 +369,43 @@ pub(super) fn search_file(
 mod tests {
     use super::*;
     use crate::query::parse_query;
+    use serde_json::json;
     use std::io::Write;
     use tempfile::tempdir;
+
+    fn write_codex_rollout(file: &mut File, cwd: &str) -> Result<()> {
+        writeln!(
+            file,
+            "{}",
+            json!({
+                "timestamp": "2026-03-15T00:00:00Z",
+                "type": "session_meta",
+                "payload": {
+                    "id": "codex-session",
+                    "cwd": cwd,
+                }
+            })
+        )?;
+        writeln!(
+            file,
+            "{}",
+            json!({
+                "timestamp": "2026-03-15T00:00:01Z",
+                "type": "response_item",
+                "payload": {
+                    "type": "message",
+                    "role": "assistant",
+                    "content": [
+                        {
+                            "type": "output_text",
+                            "text": "Search parser updated"
+                        }
+                    ]
+                }
+            })
+        )?;
+        Ok(())
+    }
 
     #[test]
     fn test_search_engine() -> Result<()> {
@@ -404,6 +432,29 @@ mod tests {
         assert_eq!(results.len(), 1);
         assert_eq!(results[0].role, "user");
         assert!(results[0].text.contains("Hello world"));
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_search_codex_rollout_respects_project_path() -> Result<()> {
+        let temp_dir = tempdir()?;
+        let test_file = temp_dir.path().join("codex.jsonl");
+
+        let mut file = File::create(&test_file)?;
+        write_codex_rollout(&mut file, "/repo/project")?;
+
+        let options = SearchOptions {
+            project_path: Some("/repo/project".to_string()),
+            ..Default::default()
+        };
+        let engine = RayonEngine::new(options);
+        let query = parse_query("updated")?;
+        let (results, _, _) = engine.search(test_file.to_str().unwrap(), query)?;
+
+        assert_eq!(results.len(), 1);
+        assert_eq!(results[0].role, "assistant");
+        assert_eq!(results[0].text, "Search parser updated");
 
         Ok(())
     }

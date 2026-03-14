@@ -10,7 +10,7 @@ use clap_complete::{Generator, Shell, generate};
 use cxms::profiling_enhanced;
 use cxms::{
     QueryCondition, RayonEngine, SearchEngineTrait, SearchOptions, SearchResult, SmolEngine,
-    Statistics, default_claude_pattern, format_search_result,
+    Statistics, default_codex_pattern, format_search_result,
     interactive_ratatui::InteractiveSearch, parse_query, profiling,
 };
 use parse_datetime::parse_datetime_at_date;
@@ -21,14 +21,14 @@ use std::io::{self, Write};
 #[command(
     name = "cxms",
     version,
-    about = "High-performance CLI for searching Claude session JSONL files",
+    about = "High-performance CLI for searching Codex session rollout JSONL files",
     long_about = None
 )]
 struct Cli {
     /// Search query (supports literal, regex, AND/OR/NOT operators). If not provided, enters interactive mode.
     query: Option<String>,
 
-    /// File pattern to search (default: ~/.claude/projects/**/*.jsonl)
+    /// File pattern to search (default: ~/.codex/sessions/**/*.jsonl)
     #[arg(short, long)]
     pattern: Option<String>,
 
@@ -195,7 +195,7 @@ fn main() -> Result<()> {
     });
 
     // Get pattern
-    let default_pattern = default_claude_pattern();
+    let default_pattern = default_codex_pattern();
     let pattern = cli.pattern.as_deref().unwrap_or(&default_pattern);
 
     // Handle --message-id search
@@ -347,7 +347,7 @@ fn main() -> Result<()> {
     }
 
     // Debug: only search specific file
-    let debug_file = "/Users/masatomokusaka/.claude/projects/-Users-masatomokusaka-src-github-com-mkusaka-bookmark-agent/9ca2db47-82d6-4da7-998e-3d7cd28ce5b5.jsonl";
+    let debug_file = "/Users/masatomokusaka/.codex/sessions/debug.jsonl";
     let pattern_to_use = if std::env::var("DEBUG_SINGLE_FILE").is_ok() {
         eprintln!("DEBUG: Searching only {debug_file}");
         debug_file
@@ -644,7 +644,7 @@ fn collect_statistics(results: &[SearchResult]) -> Statistics {
 
 fn print_query_help() {
     println!(
-        r#"Claude Search Query Syntax Help
+        r#"Codex Search Query Syntax Help
 
 BASIC QUERIES:
   hello                   Literal search (case-insensitive)

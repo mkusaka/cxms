@@ -291,7 +291,7 @@ struct CachedFile {
 
 Files are discovered using:
 - Single file if provided path is a file
-- Pattern matching for directories using `discover_claude_files`
+- Pattern matching for directories using `discover_codex_files`
 - Tilde expansion for home directory paths
 
 ## Filtering System
@@ -590,7 +590,7 @@ When exiting SessionViewer:
 ## Project Path Extraction
 
 Project paths are extracted from file paths using the pattern:
-`~/.claude/projects/{encoded-project-path}/{session-id}.jsonl`
+`~/.codex/sessions/YYYY/MM/DD/rollout-<timestamp>-<session-id>.jsonl`
 
 The encoded project path has slashes replaced with hyphens, which are decoded during extraction.
 

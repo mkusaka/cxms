@@ -1,10 +1,14 @@
 use crate::interactive_ratatui::domain::models::{SearchRequest, SearchResponse};
 use crate::query::condition::{QueryCondition, SearchResult};
+use crate::schemas::{SessionContext, parse_searchable_message};
 use crate::search::SmolEngine;
 use crate::search::engine::SearchEngineTrait;
-use crate::search::file_discovery::discover_claude_files;
+use crate::search::file_discovery::discover_codex_files;
+use crate::utils::path_encoding::cwd_belongs_to_project;
 use crate::{SearchOptions, parse_query};
 use anyhow::Result;
+use std::io::BufRead;
+use std::path::PathBuf;
 
 // Type alias for session data: (file_path, session_id, timestamp, message_count, first_message, preview_messages, summary)
 pub type SessionData = (
@@ -124,161 +128,112 @@ impl SearchService {
     }
 
     pub fn get_all_sessions(&self) -> Result<Vec<SessionData>> {
-        // Return format: (file_path, session_id, timestamp, message_count, first_message)
-        let mut sessions: Vec<SessionData> = Vec::new();
+        let files = discover_codex_files(None)?;
+        collect_sessions_from_files(files, self.base_options.project_path.as_deref())
+    }
+}
 
-        // Use discover_claude_files to find all session files
-        let files = if let Some(ref project_path) = self.base_options.project_path {
-            // When project_path is specified, look for Claude sessions for that project
-            // Use wildcard pattern to include subprojects
-            use crate::utils::path_encoding::encode_project_path;
-            use std::path::Path;
+pub(crate) fn collect_sessions_from_files(
+    files: Vec<PathBuf>,
+    project_path: Option<&str>,
+) -> Result<Vec<SessionData>> {
+    let mut sessions: Vec<SessionData> = Vec::new();
+    const MAX_PREVIEW_MESSAGES: usize = 5;
 
-            // Convert to absolute path first
-            let absolute_path = if Path::new(project_path).is_absolute() {
-                project_path.to_string()
-            } else {
-                std::env::current_dir()
-                    .ok()
-                    .and_then(|cwd| cwd.join(project_path).canonicalize().ok())
-                    .map(|p| p.to_string_lossy().to_string())
-                    .unwrap_or_else(|| project_path.to_string())
-            };
-
-            let encoded_path = encode_project_path(&absolute_path);
-            // Use wildcard to include related projects
-            let claude_project_dir = format!("~/.claude/projects/{encoded_path}*/*.jsonl");
-
-            discover_claude_files(Some(&claude_project_dir))?
-        } else {
-            // No filter, use all files
-            discover_claude_files(None)?
+    for path in files {
+        let Ok(file) = std::fs::File::open(&path) else {
+            continue;
         };
 
-        // Find all session files
-        for path in files {
-            // Read first line to get session info
-            if let Ok(content) = std::fs::read_to_string(&path) {
-                let mut session_id = String::new();
-                let mut timestamp = String::new();
-                let mut message_count = 0;
-                let mut first_message = String::new();
-                let mut preview_messages: Vec<(String, String, String)> = Vec::new();
-                let mut summary_message: Option<String> = None;
-                const MAX_PREVIEW_MESSAGES: usize = 5;
+        let reader = std::io::BufReader::new(file);
+        let mut session_context = SessionContext::default();
+        let mut session_id = String::new();
+        let mut timestamp = String::new();
+        let mut message_count = 0usize;
+        let mut first_message = String::new();
+        let mut preview_messages: Vec<(String, String, String)> = Vec::new();
+        let mut summary_message: Option<String> = None;
+        let mut skip_session = false;
 
-                for line in content.lines() {
-                    if let Ok(json) = serde_json::from_str::<serde_json::Value>(line) {
-                        message_count += 1;
+        for line in reader.lines() {
+            let line = line?;
+            if line.trim().is_empty() {
+                continue;
+            }
 
-                        // First message - get session info
-                        if message_count == 1 {
-                            if let Some(id) = json.get("sessionId").and_then(|v| v.as_str()) {
-                                session_id = id.to_string();
-                            }
-                            if let Some(ts) = json.get("timestamp").and_then(|v| v.as_str()) {
-                                timestamp = ts.to_string();
-                            }
-                        }
+            let message = parse_searchable_message(line.as_bytes(), &mut session_context);
 
-                        // Process all messages for preview
-                        if let Some(msg_type) = json.get("type").and_then(|v| v.as_str()) {
-                            match msg_type {
-                                "user" | "assistant" => {
-                                    let mut content = String::new();
+            if let Some(project_path) = project_path
+                && let Some(cwd) = session_context.cwd.as_deref()
+                && !cwd_belongs_to_project(cwd, project_path)
+            {
+                skip_session = true;
+                break;
+            }
 
-                                    // Extract content
-                                    if let Some(msg_content) = json
-                                        .get("message")
-                                        .and_then(|m| m.get("content"))
-                                        .and_then(|c| c.as_str())
-                                    {
-                                        content = msg_content
-                                            .chars()
-                                            .take(200)
-                                            .collect::<String>()
-                                            .replace('\n', " ");
-                                    } else if let Some(content_array) = json
-                                        .get("message")
-                                        .and_then(|m| m.get("content"))
-                                        .and_then(|c| c.as_array())
-                                        && let Some(first_item) = content_array.first()
-                                        && let Some(text) =
-                                            first_item.get("text").and_then(|t| t.as_str())
-                                    {
-                                        content = text
-                                            .chars()
-                                            .take(200)
-                                            .collect::<String>()
-                                            .replace('\n', " ");
-                                    }
+            let Some(message) = message else {
+                continue;
+            };
 
-                                    // Set first message if not already set
-                                    if first_message.is_empty()
-                                        && msg_type == "user"
-                                        && !content.is_empty()
-                                    {
-                                        first_message = content.clone();
-                                    }
+            message_count += 1;
 
-                                    // Collect preview messages
-                                    if preview_messages.len() < MAX_PREVIEW_MESSAGES
-                                        && !content.is_empty()
-                                    {
-                                        // Extract timestamp for this message
-                                        let msg_timestamp = json
-                                            .get("timestamp")
-                                            .and_then(|v| v.as_str())
-                                            .unwrap_or_default()
-                                            .to_string();
-                                        preview_messages.push((
-                                            msg_type.to_string(),
-                                            content,
-                                            msg_timestamp,
-                                        ));
-                                    }
-                                }
-                                "summary" => {
-                                    if let Some(summary) =
-                                        json.get("summary").and_then(|s| s.as_str())
-                                    {
-                                        summary_message = Some(
-                                            summary
-                                                .chars()
-                                                .take(200)
-                                                .collect::<String>()
-                                                .replace('\n', " "),
-                                        );
+            if session_id.is_empty() {
+                session_id = message.get_session_id().unwrap_or_default().to_string();
+            }
 
-                                        if first_message.is_empty() {
-                                            first_message =
-                                                summary_message.clone().unwrap_or_default();
-                                        }
-                                    }
-                                }
-                                _ => {}
-                            }
+            if timestamp.is_empty() {
+                timestamp = message.get_timestamp().unwrap_or_default().to_string();
+            }
+
+            let content = message
+                .get_content_text()
+                .chars()
+                .take(200)
+                .collect::<String>()
+                .replace('\n', " ");
+
+            match message.get_type() {
+                "summary" => {
+                    if !content.is_empty() {
+                        summary_message = Some(content.clone());
+                        if first_message.is_empty() {
+                            first_message = content;
                         }
                     }
                 }
+                "user" | "assistant" => {
+                    if first_message.is_empty()
+                        && message.get_type() == "user"
+                        && !content.is_empty()
+                    {
+                        first_message = content.clone();
+                    }
 
-                if !session_id.is_empty() {
-                    sessions.push((
-                        path.to_string_lossy().to_string(),
-                        session_id,
-                        timestamp,
-                        message_count,
-                        first_message,
-                        preview_messages,
-                        summary_message,
-                    ));
+                    if preview_messages.len() < MAX_PREVIEW_MESSAGES && !content.is_empty() {
+                        preview_messages.push((
+                            message.get_type().to_string(),
+                            content,
+                            message.get_timestamp().unwrap_or_default().to_string(),
+                        ));
+                    }
                 }
+                _ => {}
             }
         }
 
-        // Sort by timestamp (descending)
-        sessions.sort_by(|a, b| b.2.cmp(&a.2)); // Sort by timestamp descending
-
-        Ok(sessions)
+        if !skip_session && !session_id.is_empty() {
+            sessions.push((
+                path.to_string_lossy().to_string(),
+                session_id,
+                timestamp,
+                message_count,
+                first_message,
+                preview_messages,
+                summary_message,
+            ));
+        }
     }
+
+    sessions.sort_by(|a, b| b.2.cmp(&a.2));
+    Ok(sessions)
 }
