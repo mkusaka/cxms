@@ -412,7 +412,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "ccms"
+name = "cxms"
 version = "0.0.1"
 dependencies = [
  "anyhow",
@@ -803,6 +803,44 @@ checksum = "eb2a7d3066da2de787b7f032c736763eb7ae5d355f81a68bab2675a96008b0bf"
 dependencies = [
  "lab",
  "phf",
+]
+
+[[package]]
+name = "cxms"
+version = "0.0.1"
+dependencies = [
+ "anyhow",
+ "async-fs",
+ "blocking",
+ "chrono",
+ "clap",
+ "clap_complete",
+ "codspeed-criterion-compat",
+ "colored 3.1.1",
+ "crossbeam",
+ "crossterm",
+ "dirs",
+ "futures-lite",
+ "globset",
+ "jwalk",
+ "lru",
+ "mimalloc",
+ "nom 8.0.0",
+ "num_cpus",
+ "parse_datetime",
+ "pprof",
+ "ratatui",
+ "rayon",
+ "regex",
+ "serde",
+ "serde_json",
+ "signal-hook",
+ "smol",
+ "sonic-rs",
+ "tempfile",
+ "tracing",
+ "tracing-subscriber",
+ "uuid",
 ]
 
 [[package]]

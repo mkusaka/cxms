@@ -1,6 +1,6 @@
-# CCMS (Claude Code Message Searcher)
+# CXMS (Claude Code Message Searcher)
 
-[![CI](https://github.com/mkusaka/ccms/actions/workflows/ci.yml/badge.svg)](https://github.com/mkusaka/ccms/actions/workflows/ci.yml)
+[![CI](https://github.com/mkusaka/cxms/actions/workflows/ci.yml/badge.svg)](https://github.com/mkusaka/cxms/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 High-performance CLI for searching Claude session JSONL files with an interactive TUI mode.
@@ -24,18 +24,18 @@ High-performance CLI for searching Claude session JSONL files with an interactiv
 
 ```bash
 # Install directly from GitHub
-cargo install --git https://github.com/mkusaka/ccms
+cargo install --git https://github.com/mkusaka/cxms
 
 # Or install a specific version/tag
-cargo install --git https://github.com/mkusaka/ccms --tag v0.0.1
+cargo install --git https://github.com/mkusaka/cxms --tag v0.0.1
 ```
 
 ### From Source
 
 ```bash
 # Clone the repository
-git clone https://github.com/mkusaka/ccms.git
-cd ccms
+git clone https://github.com/mkusaka/cxms.git
+cd cxms
 
 # Build and install
 cargo install --path .
@@ -48,46 +48,46 @@ cargo install --path .
 cargo build --release
 
 # Copy to your PATH
-cp target/release/ccms ~/.local/bin/
+cp target/release/cxms ~/.local/bin/
 # or
-sudo cp target/release/ccms /usr/local/bin/
+sudo cp target/release/cxms /usr/local/bin/
 ```
 
 ## Shell Completion
 
-CCMS supports shell completion for bash, zsh, and fish. To enable it:
+CXMS supports shell completion for bash, zsh, and fish. To enable it:
 
 ### Bash
 
 ```bash
 # Generate completion script to file
-ccms --completion bash > ~/.bash_completion.d/ccms
+cxms --completion bash > ~/.bash_completion.d/cxms
 
 # Or add to .bashrc for persistent completion
-echo 'source <(ccms --completion bash)' >> ~/.bashrc
+echo 'source <(cxms --completion bash)' >> ~/.bashrc
 
 # Or enable completion immediately in current shell
-source <(ccms --completion bash)
+source <(cxms --completion bash)
 ```
 
 ### Zsh
 
 ```bash
 # Generate completion script to file
-ccms --completion zsh > ~/.zsh/completions/_ccms
+cxms --completion zsh > ~/.zsh/completions/_cxms
 
 # Or add to .zshrc for persistent completion
-echo 'source <(ccms --completion zsh)' >> ~/.zshrc
+echo 'source <(cxms --completion zsh)' >> ~/.zshrc
 
 # Or enable completion immediately in current shell
-source <(ccms --completion zsh)
+source <(cxms --completion zsh)
 ```
 
 ### Fish
 
 ```bash
 # Generate completion script
-ccms --completion fish > ~/.config/fish/completions/ccms.fish
+cxms --completion fish > ~/.config/fish/completions/cxms.fish
 ```
 
 After installation, restart your shell or source your configuration file to enable completions.
@@ -98,31 +98,31 @@ After installation, restart your shell or source your configuration file to enab
 
 ```bash
 # Launch interactive mode (no arguments needed)
-ccms
+cxms
 
 # Search for "error" in all Claude sessions
-ccms "error"
+cxms "error"
 
 # Search in specific files
-ccms -p "~/.claude/projects/myproject/*.jsonl" "bug"
+cxms -p "~/.claude/projects/myproject/*.jsonl" "bug"
 
 # Filter by role
-ccms -r user "how to"
-ccms -r assistant "I can help"
+cxms -r user "how to"
+cxms -r assistant "I can help"
 
 # Filter by current project directory (default behavior)
-ccms "TODO"                          # Searches in current directory by default
+cxms "TODO"                          # Searches in current directory by default
 
 # Explicitly specify project directory
-ccms --project "/path/to/project" "TODO"
+cxms --project "/path/to/project" "TODO"
 
 # Search all projects (bypass default filter)
-ccms --project "/" "TODO"
+cxms --project "/" "TODO"
 
 # Show statistics only (no message content)
-ccms --stats ""                      # Stats for all messages
-ccms --stats "error"                 # Stats for messages containing "error"
-ccms --stats --role user "question"  # Stats with filters
+cxms --stats ""                      # Stats for all messages
+cxms --stats "error"                 # Stats for messages containing "error"
+cxms --stats --role user "question"  # Stats with filters
 ```
 
 ### Interactive Mode (TUI)
@@ -131,21 +131,21 @@ Launch an interactive search interface similar to fzf. Interactive mode starts a
 
 ```bash
 # Interactive search (default when no query provided)
-ccms
+cxms
 
 # Interactive search in specific directory
-ccms -p "~/my-project/*.jsonl"
+cxms -p "~/my-project/*.jsonl"
 
 # Interactive search with filters
-ccms --project $(pwd)                    # Current project only
-ccms --since "1 day ago"                  # Recent messages only
-ccms -r user                              # Pre-filter by role
-ccms --project $(pwd) --since "2 hours ago"  # Combine filters
+cxms --project $(pwd)                    # Current project only
+cxms --since "1 day ago"                  # Recent messages only
+cxms -r user                              # Pre-filter by role
+cxms --project $(pwd) --since "2 hours ago"  # Combine filters
 
 # All standard filters are supported
-ccms -s "session-id"                      # Filter by session
-ccms --after "2024-01-01T00:00:00Z"       # Time range filters
-ccms -n 100                               # Adjust result limit
+cxms -s "session-id"                      # Filter by session
+cxms --after "2024-01-01T00:00:00Z"       # Time range filters
+cxms -n 100                               # Adjust result limit
 ```
 
 **Interactive Mode Controls:**
@@ -205,76 +205,76 @@ ccms -n 100                               # Adjust result limit
 
 ```bash
 # AND operator
-ccms "error AND connection"
+cxms "error AND connection"
 
 # OR operator
-ccms "warning OR error"
+cxms "warning OR error"
 
 # NOT operator
-ccms "response NOT error"
+cxms "response NOT error"
 
 # Complex queries with parentheses
-ccms "(error OR warning) AND NOT /test/i"
+cxms "(error OR warning) AND NOT /test/i"
 
 # Regular expressions
-ccms "/failed.*connection/i"
-ccms "/^Error:.*\d+/m"
+cxms "/failed.*connection/i"
+cxms "/^Error:.*\d+/m"
 ```
 
 ### Filtering Options
 
 ```bash
 # Limit results
-ccms -n 100 "search term"
+cxms -n 100 "search term"
 
 # Filter by session ID
-ccms -s "session-123" "query"
+cxms -s "session-123" "query"
 
 # Filter by timestamp
-ccms --after "2024-01-01T00:00:00Z" "recent"
-ccms --before "2024-12-31T23:59:59Z" "old"
+cxms --after "2024-01-01T00:00:00Z" "recent"
+cxms --before "2024-12-31T23:59:59Z" "old"
 
 # Filter using relative time or Unix timestamp
-ccms --since "1 day ago" "recent activity"
-ccms --since "2 hours ago" "latest changes"
-ccms --since "yesterday" "yesterday's work"
-ccms --since "last week" "weekly review"
-ccms --since "3 days ago" "recent work"
-ccms --since 1720000000 "since Unix timestamp"
+cxms --since "1 day ago" "recent activity"
+cxms --since "2 hours ago" "latest changes"
+cxms --since "yesterday" "yesterday's work"
+cxms --since "last week" "weekly review"
+cxms --since "3 days ago" "recent work"
+cxms --since 1720000000 "since Unix timestamp"
 
 # Filter by project path (defaults to current directory if not specified)
-ccms --project "/Users/me/project" "bug"
+cxms --project "/Users/me/project" "bug"
 
 # Search all projects (bypass default current directory filter)
-ccms --project "/" "bug"
+cxms --project "/" "bug"
 
 # Combine filters
-ccms -r user -n 20 --after "2024-06-01T00:00:00Z" "question"
+cxms -r user -n 20 --after "2024-06-01T00:00:00Z" "question"
 ```
 
 ### Output Formats
 
 ```bash
 # Default text output with colors
-ccms "query"
+cxms "query"
 
 # Disable colors
-ccms --no-color "query"
+cxms --no-color "query"
 
 # Show full message text
-ccms --full-text "query"
+cxms --full-text "query"
 
 # Show raw JSON of matched messages
-ccms --raw "query"
+cxms --raw "query"
 
 # JSON output with detailed statistics
-ccms -f json "query" > results.json
+cxms -f json "query" > results.json
 
 # JSONL output (one JSON per line)
-ccms -f jsonl "query" > results.jsonl
+cxms -f jsonl "query" > results.jsonl
 
 # Verbose output with debug info
-ccms -v "query"
+cxms -v "query"
 ```
 
 #### JSON Output Format
@@ -283,16 +283,16 @@ The JSON output format provides rich metadata about search results:
 
 ```bash
 # Get detailed JSON output with session and file statistics
-ccms -f json "error" --project "/" -n 100
+cxms -f json "error" --project "/" -n 100
 
 # Extract summary information
-ccms -f json "query" | jq '.summary'
+cxms -f json "query" | jq '.summary'
 
 # List all unique sessions with message counts
-ccms -f json "query" | jq -r '.sessions[] | "\(.session_id): \(.message_count) messages"'
+cxms -f json "query" | jq -r '.sessions[] | "\(.session_id): \(.message_count) messages"'
 
 # List all unique files with message counts
-ccms -f json "query" | jq -r '.files[] | "\(.message_count) messages: \(.path)"'
+cxms -f json "query" | jq -r '.files[] | "\(.message_count) messages: \(.path)"'
 ```
 
 JSON output structure includes:
@@ -375,13 +375,13 @@ The `--stats` flag displays comprehensive statistics about search results:
 
 ```bash
 # Statistics for all messages
-ccms --stats ""
+cxms --stats ""
 
 # Statistics for error messages
-ccms --stats "error"
+cxms --stats "error"
 
 # Statistics with filters
-ccms --stats --role assistant --since "1 week ago" "code"
+cxms --stats --role assistant --since "1 week ago" "code"
 ```
 
 Output includes:
@@ -405,7 +405,7 @@ Output includes:
 ```bash
 # Clone the repository
 git clone https://github.com/mkusaka/ccmeta.git
-cd ccmeta/schema/ccms
+cd ccmeta/schema/cxms
 
 # Install development tools
 cargo install cargo-nextest --locked
@@ -463,7 +463,7 @@ cargo run --release --features profiling -- --profile baseline "query"
 ### Project Structure
 
 ```
-ccms/
+cxms/
 ├── src/
 │   ├── main.rs                    # CLI entry point
 │   ├── lib.rs                     # Library exports
@@ -511,13 +511,13 @@ By default, searches in `~/.claude/projects/**/*.jsonl`
 
 ```bash
 # Search in specific project
-ccms -p "~/.claude/projects/myproject/*.jsonl" "query"
+cxms -p "~/.claude/projects/myproject/*.jsonl" "query"
 
 # Search in current directory
-ccms -p "$(pwd)/**/*.jsonl" "query"
+cxms -p "$(pwd)/**/*.jsonl" "query"
 
 # Search single file
-ccms -p "/path/to/specific/session.jsonl" "query"
+cxms -p "/path/to/specific/session.jsonl" "query"
 ```
 
 ## Contributing

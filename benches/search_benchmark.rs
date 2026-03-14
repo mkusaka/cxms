@@ -1,5 +1,5 @@
-use ccms::{SearchEngineTrait, SearchOptions, SmolEngine, parse_query};
 use codspeed_criterion_compat::{Criterion, black_box, criterion_group, criterion_main};
+use cxms::{SearchEngineTrait, SearchOptions, SmolEngine, parse_query};
 use std::fs::File;
 use std::io::Write;
 use tempfile::tempdir;
@@ -81,7 +81,7 @@ fn benchmark_json_parsing(c: &mut Criterion) {
 
     c.bench_function("json_parse_single", |b| {
         b.iter(|| {
-            let _: ccms::SessionMessage = sonic_rs::from_slice(json_line.as_bytes()).unwrap();
+            let _: cxms::SessionMessage = sonic_rs::from_slice(json_line.as_bytes()).unwrap();
         });
     });
 }

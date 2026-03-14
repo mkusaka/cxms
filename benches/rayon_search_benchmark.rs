@@ -1,7 +1,7 @@
-use ccms::{RayonEngine, SearchEngineTrait, SearchOptions, parse_query};
 use codspeed_criterion_compat::{
     BenchmarkId, Criterion, black_box, criterion_group, criterion_main,
 };
+use cxms::{RayonEngine, SearchEngineTrait, SearchOptions, parse_query};
 use std::fs::File;
 use std::io::Write;
 use tempfile::TempDir;

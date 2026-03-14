@@ -1,5 +1,5 @@
-use ccms::discover_claude_files;
 use codspeed_criterion_compat::{Criterion, black_box, criterion_group, criterion_main};
+use cxms::discover_claude_files;
 use std::fs::{self, File};
 use std::io::Write;
 use tempfile::tempdir;

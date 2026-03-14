@@ -1,12 +1,12 @@
-use ccms::search::file_discovery::discover_claude_files;
-use ccms::utils::path_encoding::encode_project_path;
 use codspeed_criterion_compat::{Criterion, criterion_group, criterion_main};
+use cxms::search::file_discovery::discover_claude_files;
+use cxms::utils::path_encoding::encode_project_path;
 use std::path::Path;
 
 fn benchmark_glob_pattern_approach(c: &mut Criterion) {
     c.bench_function("glob_pattern_approach", |b| {
         b.iter(|| {
-            let project_path = "/Users/masatomokusaka/src/github.com/mkusaka/ccms";
+            let project_path = "/Users/masatomokusaka/src/github.com/mkusaka/cxms";
 
             // Convert to absolute path
             let absolute_path = project_path.to_string();
@@ -25,7 +25,7 @@ fn benchmark_project_paths(c: &mut Criterion) {
         ("/", "root_path"),
         ("/Users/masatomokusaka", "user_home"),
         (
-            "/Users/masatomokusaka/src/github.com/mkusaka/ccms",
+            "/Users/masatomokusaka/src/github.com/mkusaka/cxms",
             "specific_project",
         ),
         (".", "current_dir"),

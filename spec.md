@@ -1,10 +1,10 @@
-# CCMS Interactive Mode Specification
+# CXMS Interactive Mode Specification
 
 ## Overview
 
-The interactive mode provides a terminal-based user interface for searching Claude session messages in real-time. Interactive mode starts automatically when `ccms` is run without a query argument. It uses the `ratatui` crate with crossterm backend for terminal control and implements features like incremental search, result navigation, role filtering, and clipboard operations.
+The interactive mode provides a terminal-based user interface for searching Claude session messages in real-time. Interactive mode starts automatically when `cxms` is run without a query argument. It uses the `ratatui` crate with crossterm backend for terminal control and implements features like incremental search, result navigation, role filtering, and clipboard operations.
 
-**Automatic Launch**: Running `ccms` without any arguments will start interactive mode by default.
+**Automatic Launch**: Running `cxms` without any arguments will start interactive mode by default.
 
 ## User Interface Layout
 
@@ -677,16 +677,16 @@ List of unique sessions containing matches:
 
 ```bash
 # Get JSON output
-ccms -f json "error" > results.json
+cxms -f json "error" > results.json
 
 # Extract session IDs
-ccms -f json "query" | jq -r '.sessions[].session_id'
+cxms -f json "query" | jq -r '.sessions[].session_id'
 
 # Get file statistics
-ccms -f json "query" | jq '.summary'
+cxms -f json "query" | jq '.summary'
 
 # List files with message counts
-ccms -f json "query" | jq -r '.files[] | "\(.message_count) messages: \(.path)"'
+cxms -f json "query" | jq -r '.files[] | "\(.message_count) messages: \(.path)"'
 ```
 
 ## Statistics Mode
@@ -697,15 +697,15 @@ The `--stats` flag provides comprehensive statistics about search results withou
 
 ```bash
 # Show stats for all messages
-ccms --stats ""
+cxms --stats ""
 
 # Show stats for messages containing "error"
-ccms --stats "error"
+cxms --stats "error"
 
 # Show stats with filters
-ccms --stats --role user "question"
-ccms --stats --project /path/to/project "bug"
-ccms --stats --since "1 week ago" "feature"
+cxms --stats --role user "question"
+cxms --stats --project /path/to/project "bug"
+cxms --stats --since "1 week ago" "feature"
 ```
 
 ### Statistics Output
