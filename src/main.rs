@@ -3,6 +3,9 @@
 static GLOBAL: mimalloc::MiMalloc = mimalloc::MiMalloc;
 
 use anyhow::Result;
+use chrono::{DateTime, Local, Utc};
+use clap::{Command, CommandFactory, Parser, ValueEnum};
+use clap_complete::{Generator, Shell, generate};
 #[cfg(feature = "profiling")]
 use cxms::profiling_enhanced;
 use cxms::{
@@ -10,9 +13,6 @@ use cxms::{
     Statistics, default_codex_pattern, format_search_result,
     interactive_ratatui::InteractiveSearch, parse_query, profiling,
 };
-use chrono::{DateTime, Local, Utc};
-use clap::{Command, CommandFactory, Parser, ValueEnum};
-use clap_complete::{Generator, Shell, generate};
 use parse_datetime::parse_datetime_at_date;
 use std::collections::HashMap;
 use std::io::{self, Write};

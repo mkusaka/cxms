@@ -1,6 +1,6 @@
+use codspeed_criterion_compat::{Criterion, black_box, criterion_group, criterion_main};
 use cxms::SearchOptions;
 use cxms::interactive_ratatui::SearchService;
-use codspeed_criterion_compat::{Criterion, black_box, criterion_group, criterion_main};
 use serde_json::json;
 use std::fs::{self, File};
 use std::io::Write;

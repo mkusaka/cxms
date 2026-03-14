@@ -1,5 +1,5 @@
-use cxms::discover_codex_files;
 use codspeed_criterion_compat::{Criterion, black_box, criterion_group, criterion_main};
+use cxms::discover_codex_files;
 use serde_json::json;
 use std::fs::{self, File};
 use std::io::Write;
