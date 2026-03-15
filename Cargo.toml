@@ -63,7 +63,7 @@ futures-lite = "2.5"
 blocking = "1.6"
 
 # Signal handling
-signal-hook = "0.3"
+signal-hook = "0.4"
 
 # Performance optimizations
 num_cpus = "1.17"
