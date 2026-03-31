@@ -61,7 +61,7 @@ jobs:
       - name: Run benchmarks
         id: codspeed
         continue-on-error: true
-        uses: CodSpeedHQ/action@281164b0f014a4e7badd2c02cecad9b595b70537 # v4.11.1
+        uses: CodSpeedHQ/action@d872884a306dd4853acf0f584f4b706cf0cc72a2 # v4.13.0
         with:
           run: cargo codspeed run
           token: ${{ secrets.CODSPEED_TOKEN }}
