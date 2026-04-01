@@ -159,7 +159,7 @@ jobs:
       - name: Install cargo-shear
         uses: taiki-e/install-action@bfadeaba214680fb4ab63e710bcb2a6a17019fdc # v2.70.4
         with:
-          tool: cargo-shear
+          tool: cargo-shear@1.4.1
       
       - name: Check for unused dependencies
         run: cargo shear
