@@ -3,7 +3,7 @@
 static GLOBAL: mimalloc::MiMalloc = mimalloc::MiMalloc;
 
 use anyhow::Result;
-use chrono::{DateTime, Local, Utc};
+use chrono::{DateTime, Utc};
 use clap::{Command, CommandFactory, Parser, ValueEnum};
 use clap_complete::{Generator, Shell, generate};
 #[cfg(feature = "profiling")]
@@ -13,7 +13,7 @@ use cxms::{
     Statistics, default_codex_pattern, format_search_result,
     interactive_ratatui::InteractiveSearch, parse_query, profiling,
 };
-use parse_datetime::parse_datetime_at_date;
+use parse_datetime::parse_datetime;
 use std::collections::HashMap;
 use std::io::{self, Write};
 
@@ -525,9 +525,8 @@ fn parse_since_time(input: &str) -> Result<String> {
     }
 
     // Try to parse as relative time using parse_datetime
-    let now = Local::now();
-    match parse_datetime_at_date(now, input) {
-        Ok(dt) => Ok(dt.to_rfc3339()),
+    match parse_datetime(input) {
+        Ok(dt) => Ok(dt.timestamp().to_string()),
         Err(e) => Err(anyhow::anyhow!(
             "Failed to parse time '{input}': {e}. Expected Unix timestamp or relative time like '1 day ago'"
         )),
