@@ -60,7 +60,7 @@ jobs:
           toolchain: ${{ matrix.rust }}
       
       - name: Install cargo-nextest
-        uses: taiki-e/install-action@1ed3272338f573e042a2e6bca3893aa19f43b47a # v2.71.3
+        uses: taiki-e/install-action@de6f06126afb86b5250a16ff961c57360c5edccc # v2.72.0
         with:
           tool: cargo-nextest
       
@@ -157,7 +157,7 @@ jobs:
           key: ${{ runner.os }}-cargo-build-target-${{ hashFiles('**/Cargo.lock') }}
       
       - name: Install cargo-shear
-        uses: taiki-e/install-action@1ed3272338f573e042a2e6bca3893aa19f43b47a # v2.71.3
+        uses: taiki-e/install-action@de6f06126afb86b5250a16ff961c57360c5edccc # v2.72.0
         with:
           tool: cargo-shear@1.4.1
       
