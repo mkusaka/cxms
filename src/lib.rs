@@ -1,6 +1,6 @@
 pub mod interactive_ratatui;
 pub mod profiling;
-#[cfg(feature = "profiling")]
+#[cfg(all(feature = "profiling", unix))]
 pub mod profiling_enhanced;
 pub mod query;
 pub mod schemas;

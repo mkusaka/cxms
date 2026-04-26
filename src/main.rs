@@ -6,7 +6,7 @@ use anyhow::Result;
 use chrono::{DateTime, Utc};
 use clap::{Command, CommandFactory, Parser, ValueEnum};
 use clap_complete::{Generator, Shell, generate};
-#[cfg(feature = "profiling")]
+#[cfg(all(feature = "profiling", unix))]
 use cxms::profiling_enhanced;
 use cxms::{
     QueryCondition, RayonEngine, SearchEngineTrait, SearchOptions, SearchResult, SmolEngine,
@@ -97,11 +97,11 @@ struct Cli {
     project_path: Option<String>,
 
     /// Generate profiling report (requires --features profiling)
-    #[cfg(feature = "profiling")]
+    #[cfg(all(feature = "profiling", unix))]
     #[arg(long)]
     profile: Option<String>,
 
-    #[cfg(not(feature = "profiling"))]
+    #[cfg(not(all(feature = "profiling", unix)))]
     #[arg(long, hide = true)]
     profile: Option<String>,
 
@@ -160,14 +160,14 @@ fn main() -> Result<()> {
     }
 
     // Initialize profiler if requested
-    #[cfg(feature = "profiling")]
+    #[cfg(all(feature = "profiling", unix))]
     let mut profiler = if cli.profile.is_some() {
         Some(profiling_enhanced::EnhancedProfiler::new("main")?)
     } else {
         None
     };
 
-    #[cfg(not(feature = "profiling"))]
+    #[cfg(not(all(feature = "profiling", unix)))]
     if cli.profile.is_some() {
         eprintln!(
             "Warning: Profiling is not enabled. Build with --features profiling to enable profiling."
@@ -501,7 +501,7 @@ fn main() -> Result<()> {
     }
 
     // Generate profiling report if requested
-    #[cfg(feature = "profiling")]
+    #[cfg(all(feature = "profiling", unix))]
     if let Some(ref mut profiler) = profiler {
         if let Some(profile_path) = &cli.profile {
             let report = profiler.generate_comprehensive_report(profile_path)?;
