@@ -55,7 +55,7 @@ jobs:
         with:
           toolchain: ${{ matrix.rust }}
       - name: Install cargo-nextest
-        uses: taiki-e/install-action@6c1f7cf125e42770ff087ea443901b487cc5471a # v2.79.5
+        uses: taiki-e/install-action@f48d2f8ba2b452934c948b7be1a768079c3632ff # v2.79.6
         with:
           tool: cargo-nextest
       - name: Cache cargo registry
@@ -144,7 +144,7 @@ jobs:
           path: target
           key: ${{ runner.os }}-cargo-build-target-${{ hashFiles('**/Cargo.lock') }}
       - name: Install cargo-shear
-        uses: taiki-e/install-action@6c1f7cf125e42770ff087ea443901b487cc5471a # v2.79.5
+        uses: taiki-e/install-action@f48d2f8ba2b452934c948b7be1a768079c3632ff # v2.79.6
         with:
           tool: cargo-shear@1.4.1
       - name: Check for unused dependencies
