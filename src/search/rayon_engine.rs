@@ -313,13 +313,13 @@ pub(super) fn search_file(
                     continue;
                 }
 
-                if let Some(project_path) = &options.project_path {
-                    if !path_encoding::cwd_belongs_to_project(
+                if let Some(project_path) = &options.project_path
+                    && !path_encoding::cwd_belongs_to_project(
                         message.get_cwd().unwrap_or_default(),
                         project_path,
-                    ) {
-                        continue;
-                    }
+                    )
+                {
+                    continue;
                 }
 
                 // Create result
