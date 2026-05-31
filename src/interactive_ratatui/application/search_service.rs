@@ -193,14 +193,13 @@ pub(crate) fn collect_sessions_from_files(
                 .replace('\n', " ");
 
             match message.get_type() {
-                "summary" => {
-                    if !content.is_empty() {
-                        summary_message = Some(content.clone());
-                        if first_message.is_empty() {
-                            first_message = content;
-                        }
+                "summary" if !content.is_empty() => {
+                    summary_message = Some(content.clone());
+                    if first_message.is_empty() {
+                        first_message = content;
                     }
                 }
+                "summary" => {}
                 "user" | "assistant" => {
                     if first_message.is_empty()
                         && message.get_type() == "user"
