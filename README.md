@@ -106,6 +106,9 @@ cxms "error"
 # Search in specific files
 cxms -p "~/.codex/sessions/**/*.jsonl" "bug"
 
+# Search a different Codex home
+cxms --codex-home ~/.codex-work2 "bug"
+
 # Filter by role
 cxms -r user "how to"
 cxms -r assistant "I can help"
@@ -123,6 +126,12 @@ cxms --project "/" "TODO"
 cxms --stats ""                      # Stats for all messages
 cxms --stats "error"                 # Stats for messages containing "error"
 cxms --stats --role user "question"  # Stats with filters
+
+# Show nearby session messages around each hit
+cxms --around 2 "query"
+
+# Show matching sessions as outlines
+cxms --session-outline --since "2 weeks ago" "topic"
 ```
 
 ### Interactive Mode (TUI)
@@ -252,6 +261,27 @@ cxms --project "/" "bug"
 cxms -r user -n 20 --after "2024-06-01T00:00:00Z" "question"
 ```
 
+### Context and Session Outlines
+
+```bash
+# Include two messages before and after each matched message
+cxms --around 2 "query"
+
+# Search another Codex home
+cxms --codex-home ~/.codex-work2 "query"
+
+# Summarize matching sessions instead of listing every matched message
+cxms --session-outline --since "2 weeks ago" "topic"
+```
+
+`--around <N>` applies only to normal CLI searches. It prints context messages with a `context` marker and the matched message with a `hit` marker. JSON and JSONL output include a machine-readable `context` array with offsets around each hit.
+
+`--codex-home <PATH>` searches `<PATH>/sessions/**/*.jsonl`. If `--pattern/-p` is also specified, the explicit pattern wins.
+
+`--session-outline` groups matching messages by session and prints a session-level view with session id, cwd, timestamps, match count, total parsed message count, the first user request preview, and the latest assistant or summary preview. In this mode, `--max-results/-n` limits the number of sessions displayed, not the number of matched messages scanned before grouping.
+
+`--stats` is intentionally rejected with `--around` and `--session-outline`. `--raw` is also rejected with these context-oriented modes.
+
 ### Output Formats
 
 ```bash
@@ -305,6 +335,7 @@ JSON output structure includes:
 
 ### General Options
 - `-p, --pattern <PATTERN>` - File pattern to search (default: `~/.codex/sessions/**/*.jsonl`)
+- `--codex-home <PATH>` - Codex home to search as `<PATH>/sessions/**/*.jsonl`; overridden by `--pattern`
 - `-n, --max-results <N>` - Maximum number of results to return (default: 200)
 - `-f, --format <FORMAT>` - Output format: `text`, `json`, or `jsonl` (default: text)
 - `-v, --verbose` - Enable verbose output
@@ -312,6 +343,8 @@ JSON output structure includes:
 - `--full-text` - Show full message text without truncation
 - `--raw` - Show raw JSON of matched messages
 - `--stats` - Show only statistics without message content
+- `--around <N>` - Include N messages before and after each matched message in normal CLI search output
+- `--session-outline` - Group matching results into session-level outlines
 
 ### Filtering Options
 - `-r, --role <ROLE>` - Filter by message role: `user`, `assistant`, `system`, or `summary`

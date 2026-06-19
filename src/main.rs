@@ -9,8 +9,9 @@ use clap_complete::{Generator, Shell, generate};
 #[cfg(all(feature = "profiling", unix))]
 use cxms::profiling_enhanced;
 use cxms::{
-    QueryCondition, RayonEngine, SearchEngineTrait, SearchOptions, SearchResult, SmolEngine,
-    Statistics, default_codex_pattern, format_search_result,
+    AroundSearchResult, QueryCondition, RayonEngine, SearchEngineTrait, SearchOptions,
+    SearchResult, SessionOutline, SmolEngine, Statistics, build_around_results,
+    build_session_outlines, codex_home_pattern, default_codex_pattern, format_search_result,
     interactive_ratatui::InteractiveSearch, parse_query, profiling,
 };
 use parse_datetime::parse_datetime;
@@ -31,6 +32,10 @@ struct Cli {
     /// File pattern to search (default: ~/.codex/sessions/**/*.jsonl)
     #[arg(short, long)]
     pattern: Option<String>,
+
+    /// Codex home to search (uses <PATH>/sessions/**/*.jsonl; overridden by --pattern)
+    #[arg(long)]
+    codex_home: Option<String>,
 
     /// Filter by message role (user, assistant, system, summary)
     #[arg(short, long)]
@@ -91,6 +96,14 @@ struct Cli {
     /// Show raw JSON of matched messages
     #[arg(long)]
     raw: bool,
+
+    /// Include N messages before and after each matched message in CLI output
+    #[arg(long, default_value = "0")]
+    around: usize,
+
+    /// Output matching sessions as session-level outlines instead of message results
+    #[arg(long)]
+    session_outline: bool,
 
     /// Filter by working directory (cwd) path
     #[arg(long = "project")]
@@ -159,6 +172,23 @@ fn main() -> Result<()> {
         return Ok(());
     }
 
+    if cli.stats && cli.session_outline {
+        eprintln!("Error: --stats cannot be used with --session-outline");
+        std::process::exit(1);
+    }
+    if cli.stats && cli.around > 0 {
+        eprintln!("Error: --stats cannot be used with --around");
+        std::process::exit(1);
+    }
+    if cli.raw && cli.session_outline {
+        eprintln!("Error: --raw cannot be used with --session-outline");
+        std::process::exit(1);
+    }
+    if cli.raw && cli.around > 0 {
+        eprintln!("Error: --raw cannot be used with --around");
+        std::process::exit(1);
+    }
+
     // Initialize profiler if requested
     #[cfg(all(feature = "profiling", unix))]
     let mut profiler = if cli.profile.is_some() {
@@ -195,8 +225,7 @@ fn main() -> Result<()> {
     });
 
     // Get pattern
-    let default_pattern = default_codex_pattern();
-    let pattern = cli.pattern.as_deref().unwrap_or(&default_pattern);
+    let pattern = resolve_pattern(cli.pattern.as_deref(), cli.codex_home.as_deref());
 
     // Handle --message-id search
     if let Some(message_id) = &cli.message_id {
@@ -221,7 +250,7 @@ fn main() -> Result<()> {
 
         // Execute search
         let engine = SmolEngine::new(options);
-        let (results, duration, _) = engine.search(pattern, query)?;
+        let (results, duration, _) = engine.search(&pattern, query)?;
 
         if results.is_empty() {
             eprintln!("Message with ID '{message_id}' not found.");
@@ -259,7 +288,7 @@ fn main() -> Result<()> {
 
         let mut interactive = InteractiveSearch::new(options);
         interactive.set_start_latest_message_detail(true);
-        return interactive.run(pattern);
+        return interactive.run(&pattern);
     }
 
     // Handle --latest-session mode
@@ -282,7 +311,7 @@ fn main() -> Result<()> {
 
         let mut interactive = InteractiveSearch::new(options);
         interactive.set_start_latest(true);
-        return interactive.run(pattern);
+        return interactive.run(&pattern);
     }
 
     // Interactive mode when no query provided or query is empty (but not when --stats is used)
@@ -301,7 +330,7 @@ fn main() -> Result<()> {
         };
 
         let mut interactive = InteractiveSearch::new(options);
-        return interactive.run(pattern);
+        return interactive.run(&pattern);
     }
 
     // Regular search mode - query is provided (or empty string for --stats)
@@ -327,8 +356,8 @@ fn main() -> Result<()> {
 
     // Create search options
     let options = SearchOptions {
-        max_results: if cli.stats {
-            None // Don't limit results when calculating statistics
+        max_results: if cli.stats || cli.session_outline {
+            None // Don't limit results when calculating statistics or session outlines
         } else {
             Some(cli.max_results)
         },
@@ -350,9 +379,9 @@ fn main() -> Result<()> {
     let debug_file = "/Users/masatomokusaka/.codex/sessions/debug.jsonl";
     let pattern_to_use = if std::env::var("DEBUG_SINGLE_FILE").is_ok() {
         eprintln!("DEBUG: Searching only {debug_file}");
-        debug_file
+        debug_file.to_string()
     } else {
-        pattern
+        pattern.clone()
     };
 
     // Execute search
@@ -370,11 +399,11 @@ fn main() -> Result<()> {
     let (results, duration, total_count) = match cli.engine {
         EngineType::Smol => {
             let engine = SmolEngine::new(options);
-            engine.search(pattern_to_use, query)?
+            engine.search(&pattern_to_use, query)?
         }
         EngineType::Rayon => {
             let engine = RayonEngine::new(options);
-            engine.search(pattern_to_use, query)?
+            engine.search(&pattern_to_use, query)?
         }
     };
 
@@ -394,6 +423,25 @@ fn main() -> Result<()> {
         return Ok(());
     }
 
+    if cli.session_outline {
+        let outlines = build_session_outlines(&results, cli.max_results)?;
+        output_session_outlines(
+            &outlines,
+            cli.format,
+            !cli.no_color,
+            duration,
+            total_count,
+            results.len(),
+        )?;
+        return Ok(());
+    }
+
+    let around_results = if cli.around > 0 {
+        Some(build_around_results(&results, cli.around)?)
+    } else {
+        None
+    };
+
     // Output results
     let stdout = io::stdout();
     let mut handle = stdout.lock();
@@ -408,6 +456,26 @@ fn main() -> Result<()> {
                     if let Some(raw_json) = &result.raw_json {
                         println!("{raw_json}");
                     }
+                }
+            } else if let Some(around_results) = &around_results {
+                println!("Found {} results:\n", around_results.len());
+                for result in around_results {
+                    println!(
+                        "{}",
+                        format_around_search_result(result, !cli.no_color, cli.full_text)
+                    );
+                }
+
+                // Print search statistics
+                eprintln!("\n⏱️  Search completed in {}ms", duration.as_millis());
+                if total_count > results.len() {
+                    eprintln!(
+                        "(Showing {} of {} total results)",
+                        results.len(),
+                        total_count
+                    );
+                } else {
+                    eprintln!("(Found {total_count} results)");
                 }
             } else {
                 println!("Found {} results:\n", results.len());
@@ -468,7 +536,11 @@ fn main() -> Result<()> {
                 .collect();
 
             let output = serde_json::json!({
-                "results": results,
+                "results": around_results
+                    .as_ref()
+                    .map(serde_json::to_value)
+                    .transpose()?
+                    .unwrap_or_else(|| serde_json::to_value(&results).unwrap_or(serde_json::Value::Null)),
                 "summary": {
                     "duration_ms": duration.as_millis(),
                     "total_count": total_count,
@@ -483,9 +555,16 @@ fn main() -> Result<()> {
             writeln!(&mut handle)?;
         }
         OutputFormat::JsonL => {
-            for result in &results {
-                serde_json::to_writer(&mut handle, result)?;
-                writeln!(&mut handle)?;
+            if let Some(around_results) = &around_results {
+                for result in around_results {
+                    serde_json::to_writer(&mut handle, result)?;
+                    writeln!(&mut handle)?;
+                }
+            } else {
+                for result in &results {
+                    serde_json::to_writer(&mut handle, result)?;
+                    writeln!(&mut handle)?;
+                }
             }
             // Write metadata as last line
             let metadata = serde_json::json!({
@@ -511,6 +590,138 @@ fn main() -> Result<()> {
     }
 
     Ok(())
+}
+
+fn resolve_pattern(pattern: Option<&str>, codex_home: Option<&str>) -> String {
+    pattern
+        .map(ToString::to_string)
+        .or_else(|| codex_home.map(codex_home_pattern))
+        .unwrap_or_else(default_codex_pattern)
+}
+
+fn output_session_outlines(
+    outlines: &[SessionOutline],
+    format: OutputFormat,
+    use_color: bool,
+    duration: std::time::Duration,
+    total_match_count: usize,
+    returned_match_count: usize,
+) -> Result<()> {
+    let stdout = io::stdout();
+    let mut handle = stdout.lock();
+
+    match format {
+        OutputFormat::Text => {
+            if outlines.is_empty() {
+                println!("No matching sessions found.");
+            } else {
+                println!("Found {} sessions:\n", outlines.len());
+                for outline in outlines {
+                    println!("{}", format_session_outline(outline, use_color));
+                }
+            }
+            eprintln!("\n⏱️  Search completed in {}ms", duration.as_millis());
+            eprintln!(
+                "(Grouped {returned_match_count} matching messages into {} sessions)",
+                outlines.len()
+            );
+        }
+        OutputFormat::Json => {
+            let output = serde_json::json!({
+                "sessions": outlines,
+                "summary": {
+                    "duration_ms": duration.as_millis(),
+                    "total_match_count": total_match_count,
+                    "returned_match_count": returned_match_count,
+                    "returned_session_count": outlines.len()
+                }
+            });
+            serde_json::to_writer_pretty(&mut handle, &output)?;
+            writeln!(&mut handle)?;
+        }
+        OutputFormat::JsonL => {
+            for outline in outlines {
+                serde_json::to_writer(&mut handle, outline)?;
+                writeln!(&mut handle)?;
+            }
+            let metadata = serde_json::json!({
+                "_metadata": {
+                    "duration_ms": duration.as_millis(),
+                    "total_match_count": total_match_count,
+                    "returned_match_count": returned_match_count,
+                    "returned_session_count": outlines.len()
+                }
+            });
+            serde_json::to_writer(&mut handle, &metadata)?;
+            writeln!(&mut handle)?;
+        }
+    }
+
+    Ok(())
+}
+
+fn format_session_outline(outline: &SessionOutline, use_color: bool) -> String {
+    use colored::Colorize;
+
+    let title = if use_color {
+        format!(
+            "{} [{} matches / {} messages]",
+            outline.session_id.bright_yellow(),
+            outline.matched_message_count,
+            outline.total_message_count
+        )
+    } else {
+        format!(
+            "{} [{} matches / {} messages]",
+            outline.session_id, outline.matched_message_count, outline.total_message_count
+        )
+    };
+
+    let mut lines = vec![
+        title,
+        format!("  cwd: {}", outline.cwd),
+        format!("  file: {}", outline.file),
+        format!(
+            "  time: {} -> {}",
+            outline.first_timestamp, outline.last_timestamp
+        ),
+    ];
+
+    if let Some(preview) = &outline.first_user_request_preview {
+        lines.push(format!("  first user: {preview}"));
+    }
+    if let Some(preview) = &outline.latest_assistant_or_summary_preview {
+        lines.push(format!("  latest assistant/summary: {preview}"));
+    }
+
+    lines.join("\n")
+}
+
+fn format_around_search_result(
+    result: &AroundSearchResult,
+    use_color: bool,
+    full_text: bool,
+) -> String {
+    use colored::Colorize;
+
+    let mut lines = Vec::new();
+    for context in &result.context {
+        let marker = if context.is_hit { "=>" } else { "  " };
+        let label = if context.is_hit { "hit" } else { "context" };
+        let prefix = if use_color && context.is_hit {
+            format!(
+                "{} {}",
+                marker.bright_yellow().bold(),
+                label.bright_yellow()
+            )
+        } else {
+            format!("{marker} {label}")
+        };
+        let formatted = format_search_result(&context.message, use_color, full_text);
+        lines.push(format!("{prefix} offset={}\n{formatted}", context.offset));
+    }
+
+    lines.join("\n")
 }
 
 fn parse_since_time(input: &str) -> Result<String> {
@@ -827,5 +1038,38 @@ mod tests {
     fn test_cli_latest_conflicts_with_latest_session() {
         let parsed = Cli::try_parse_from(["cxms", "--latest", "--latest-session"]);
         assert!(parsed.is_err());
+    }
+
+    #[test]
+    fn test_cli_parses_context_options() {
+        let parsed = Cli::try_parse_from([
+            "cxms",
+            "--codex-home",
+            "~/.codex-work2",
+            "--around",
+            "2",
+            "--session-outline",
+            "KARTE",
+        ])
+        .unwrap();
+
+        assert_eq!(parsed.codex_home.as_deref(), Some("~/.codex-work2"));
+        assert_eq!(parsed.around, 2);
+        assert!(parsed.session_outline);
+        assert_eq!(parsed.query.as_deref(), Some("KARTE"));
+    }
+
+    #[test]
+    fn test_resolve_pattern_prefers_pattern_over_codex_home() {
+        let pattern = resolve_pattern(Some("/tmp/custom/*.jsonl"), Some("~/.codex-work2"));
+
+        assert_eq!(pattern, "/tmp/custom/*.jsonl");
+    }
+
+    #[test]
+    fn test_resolve_pattern_uses_codex_home_sessions() {
+        let pattern = resolve_pattern(None, Some("~/.codex-work2"));
+
+        assert_eq!(pattern, "~/.codex-work2/sessions/**/*.jsonl");
     }
 }

@@ -11,7 +11,8 @@ pub mod utils;
 pub use query::{QueryCondition, SearchOptions, SearchResult, parse_query};
 pub use schemas::{SearchableMessage, SessionMessage, ToolResult};
 pub use search::{
-    RayonEngine, SearchEngineTrait, SmolEngine, default_codex_pattern, discover_codex_files,
-    expand_tilde, format_search_result,
+    AroundSearchResult, ContextMessage, RayonEngine, SearchEngineTrait, SessionOutline, SmolEngine,
+    build_around_results, build_session_outlines, codex_home_pattern, default_codex_pattern,
+    discover_codex_files, expand_tilde, format_search_result,
 };
 pub use stats::{Statistics, format_statistics};
