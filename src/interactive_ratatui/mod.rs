@@ -16,7 +16,9 @@ use std::io::{self, Stdout};
 use std::sync::Arc;
 use std::time::Duration;
 
-use crate::SearchOptions;
+use crate::query::QueryCondition;
+use crate::query::fast_lowercase::FastLowercase;
+use crate::{SearchOptions, parse_query};
 
 mod application;
 mod constants;
@@ -38,7 +40,10 @@ pub use self::application::search_service::SearchService;
 use self::constants::*;
 use self::domain::models::{Mode, SearchOrder, SearchRequest, SearchResponse, SessionOrder};
 use self::ui::{
-    app_state::AppState, commands::Command, components::Component, events::Message,
+    app_state::{AppState, SessionInfo},
+    commands::Command,
+    components::Component,
+    events::Message,
     renderer::Renderer,
 };
 
@@ -726,35 +731,40 @@ impl InteractiveSearch {
 
         // Get the search service
         let search_service = self.search_service.clone();
+        let literal_query = simple_literal_query(&query);
 
-        // Perform async filtering using full-text search with parallel processing
+        // Perform async filtering using a fast literal path for common session-list searches.
         let filtered_sessions = blocking::unblock(move || {
             use rayon::prelude::*;
 
             all_sessions
                 .into_par_iter() // Use parallel iterator
                 .filter(|session| {
-                    // Create search request for this specific session
-                    // Use the session's file path as the pattern to search only in that file
+                    if let Some(literal_query) = literal_query.as_deref() {
+                        if session_metadata_matches_query(session, literal_query) {
+                            return true;
+                        }
+
+                        return search_service
+                            .session_matches_literal_query(&session.file_path, literal_query)
+                            .unwrap_or(false);
+                    }
+
+                    // Preserve existing query syntax support for AND/OR/NOT and regex searches.
                     let request = SearchRequest {
                         id: 0,
                         query: query.clone(),
                         pattern: session.file_path.clone(),
                         role_filter: None,
                         order: crate::interactive_ratatui::domain::models::SearchOrder::Descending,
-                        limit: None, // No limit for session list search
+                        limit: None,
                         offset: None,
                     };
 
-                    // Search within this specific session
-                    if let Ok(response) =
-                        search_service.search_session(request, session.session_id.clone())
-                    {
-                        // If any messages match, include this session
-                        !response.results.is_empty()
-                    } else {
-                        false
-                    }
+                    search_service
+                        .search_session(request, session.session_id.clone())
+                        .map(|response| !response.results.is_empty())
+                        .unwrap_or(false)
                 })
                 .collect::<Vec<_>>()
         })
@@ -937,4 +947,41 @@ impl InteractiveSearch {
     pub(crate) fn set_mode(&mut self, mode: Mode) {
         self.state.mode = mode;
     }
+}
+
+fn simple_literal_query(query: &str) -> Option<String> {
+    match parse_query(query).ok()? {
+        QueryCondition::Literal {
+            pattern,
+            case_sensitive: false,
+        } => Some(pattern),
+        _ => None,
+    }
+}
+
+fn session_metadata_matches_query(session: &SessionInfo, query: &str) -> bool {
+    let query_lower = query.fast_to_lowercase();
+
+    session
+        .session_id
+        .fast_to_lowercase()
+        .contains(&query_lower)
+        || session.file_path.fast_to_lowercase().contains(&query_lower)
+        || session
+            .first_message
+            .fast_to_lowercase()
+            .contains(&query_lower)
+        || session
+            .summary
+            .as_deref()
+            .map(|summary| summary.fast_to_lowercase().contains(&query_lower))
+            .unwrap_or(false)
+        || session
+            .preview_messages
+            .iter()
+            .any(|(role, content, timestamp)| {
+                role.fast_to_lowercase().contains(&query_lower)
+                    || content.fast_to_lowercase().contains(&query_lower)
+                    || timestamp.fast_to_lowercase().contains(&query_lower)
+            })
 }

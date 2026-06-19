@@ -168,12 +168,29 @@ pub fn parse_searchable_message(
     line: &[u8],
     context: &mut SessionContext,
 ) -> Option<SearchableMessage> {
+    if looks_like_codex_rollout_line(line) {
+        if let Ok(rollout_line) = sonic_rs::from_slice::<CodexRolloutLine>(line) {
+            return parse_codex_rollout_line(rollout_line, context);
+        }
+
+        return sonic_rs::from_slice::<LegacySessionMessage>(line)
+            .ok()
+            .map(SearchableMessage::from_legacy_message);
+    }
+
     if let Ok(message) = sonic_rs::from_slice::<LegacySessionMessage>(line) {
         return Some(SearchableMessage::from_legacy_message(message));
     }
 
     let rollout_line = sonic_rs::from_slice::<CodexRolloutLine>(line).ok()?;
 
+    parse_codex_rollout_line(rollout_line, context)
+}
+
+fn parse_codex_rollout_line(
+    rollout_line: CodexRolloutLine,
+    context: &mut SessionContext,
+) -> Option<SearchableMessage> {
     match rollout_line {
         CodexRolloutLine::SessionMeta { payload } => {
             context.session_id = Some(payload.id);
@@ -213,6 +230,21 @@ pub fn parse_searchable_message(
         },
         CodexRolloutLine::EventMsg { .. } | CodexRolloutLine::Compacted { .. } => None,
     }
+}
+
+fn looks_like_codex_rollout_line(line: &[u8]) -> bool {
+    contains_bytes(line, br#""payload""#)
+        && (contains_bytes(line, br#""session_meta""#)
+            || contains_bytes(line, br#""turn_context""#)
+            || contains_bytes(line, br#""response_item""#)
+            || contains_bytes(line, br#""event_msg""#)
+            || contains_bytes(line, br#""compacted""#))
+}
+
+fn contains_bytes(haystack: &[u8], needle: &[u8]) -> bool {
+    haystack
+        .windows(needle.len())
+        .any(|window| window == needle)
 }
 
 fn strip_user_message_prefix(text: &str) -> &str {
