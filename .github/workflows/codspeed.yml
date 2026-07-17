@@ -45,7 +45,7 @@ jobs:
           path: target
           key: ${{ runner.os }}-cargo-build-target-${{ hashFiles('**/Cargo.lock') }}
       - name: Install cargo-codspeed
-        uses: taiki-e/install-action@5ebac0d9522d786674368e47e92963ba13f2c376 # v2.82.11
+        uses: taiki-e/install-action@c7eb1735f09259a5035e8e5d44b1406b1cddc0fb # v2.83.0
         with:
           tool: cargo-codspeed
       - name: Build benchmarks
@@ -53,7 +53,7 @@ jobs:
       - name: Run benchmarks
         id: codspeed
         continue-on-error: true
-        uses: CodSpeedHQ/action@9f3a37ece7abc84992501a7fcd54d1704f3458fa # v4.18.4
+        uses: CodSpeedHQ/action@f99becdce5e5d51fd556489ebef684f4ecfd6286 # v4.18.5
         with:
           run: cargo codspeed run
           token: ${{ secrets.CODSPEED_TOKEN }}
