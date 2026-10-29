@@ -734,8 +734,9 @@ fn parse_since_time(input: &str) -> Result<String> {
     }
 
     // Try to parse as relative time using parse_datetime
-    match parse_datetime(input) {
-        Ok(dt) => Ok(dt.timestamp().to_string()),
+    match parse_datetime(input).map(|dt| dt.into_zoned()) {
+        Ok(Some(dt)) => Ok(dt.timestamp().to_string()),
+        Ok(None) => Err(anyhow::anyhow!("Time '{input}' is out of supported range")),
         Err(e) => Err(anyhow::anyhow!(
             "Failed to parse time '{input}': {e}. Expected Unix timestamp or relative time like '1 day ago'"
         )),
