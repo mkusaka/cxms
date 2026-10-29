@@ -81,6 +81,7 @@ jobs:
           CARGO_PROFILE_RELEASE_STRIP: "true"
         run: cargo build --release --locked
       - name: Package archive
+        shell: bash
         env:
           TARGET: ${{ matrix.target }}
           VERSION: ${{ needs.verify.outputs.version }}
